@@ -6,5 +6,4 @@ public record RadarrOptions
 
     public required string BaseUrl { get; init; } = "http://radarr:7878";
     public string? ApiKey { get; init; }
-    public int RefreshTimeoutMinutes { get; init; } = 5;
 }

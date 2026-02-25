@@ -174,7 +174,7 @@ public class CleanupService
         }
 
         TimeSpan durationSinceEstimatedCompletion = _timeProvider.GetUtcNow() - item.EstimatedCompletionTime.Value;
-        if (item.EstimatedCompletionTime.HasValue && durationSinceEstimatedCompletion.TotalHours > _options.MaxDownloadTimeHours)
+        if (durationSinceEstimatedCompletion.TotalHours > _options.MaxDownloadTimeHours)
         {
             return true;
         }
@@ -184,7 +184,7 @@ public class CleanupService
             return true;
         }
 
-        if (item.Status is QueueStatus.Failed || item.Status is QueueStatus.Queued)
+        if (item.Status is QueueStatus.Failed or QueueStatus.Queued)
         {
             return true;
         }

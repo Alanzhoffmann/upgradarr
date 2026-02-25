@@ -73,29 +73,4 @@ public class UpgradeState
     /// When this record was last updated
     /// </summary>
     public DateTimeOffset? LastUpdatedAt { get; set; }
-
-    // Helper methods
-    /// <summary>
-    /// Checks if the item has been released (for filtering unreleased items)
-    /// </summary>
-    public bool IsReleased()
-    {
-        if (!ReleaseDate.HasValue)
-            return true; // If no release date, assume released
-
-        return ReleaseDate.Value <= DateTimeOffset.UtcNow;
-    }
-
-    /// <summary>
-    /// Gets a string key for this queue item
-    /// </summary>
-    public string GetKey()
-    {
-        return ItemType switch
-        {
-            ItemType.Episode => $"{ParentSeriesId}:s{SeasonNumber}e{EpisodeNumber}",
-            ItemType.Season => $"{ParentSeriesId}:s{SeasonNumber}",
-            _ => ItemId.ToString(),
-        };
-    }
 }

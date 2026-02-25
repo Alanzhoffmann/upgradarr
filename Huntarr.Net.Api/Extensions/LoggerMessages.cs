@@ -1,39 +1,9 @@
 ﻿using Huntarr.Net.Api.Models;
-using Huntarr.Net.Clients.Options;
 
 namespace Huntarr.Net.Api.Extensions;
 
 public static partial class LoggerMessages
 {
-    [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = "Upgrade background service is starting.")]
-    public static partial void LogStartingUpgradeBackgroundService(this ILogger logger);
-
-    [LoggerMessage(EventId = 1002, Level = LogLevel.Information, Message = "Upgrade background service is stopping.")]
-    public static partial void LogStoppingUpgradeBackgroundService(this ILogger logger);
-
-    [LoggerMessage(EventId = 1003, Level = LogLevel.Information, Message = "Upgrade background service is checking for upgrades.")]
-    public static partial void LogCheckingForUpgrades(this ILogger logger);
-
-    [LoggerMessage(EventId = 4001, Level = LogLevel.Error, Message = "An error occurred while checking for upgrades: {ErrorMessage}")]
-    public static partial void LogErrorCheckingForUpgrades(this ILogger logger, string errorMessage);
-
-    [LoggerMessage(EventId = 4002, Level = LogLevel.Information, Message = "Sonarr options {SonarrOptions}")]
-    public static partial void LogSonarrOptions(this ILogger logger, SonarrOptions sonarrOptions);
-
-    [LoggerMessage(EventId = 4003, Level = LogLevel.Information, Message = "Sonarr system version: {Version}")]
-    public static partial void LogSonarrSystemVersion(this ILogger logger, string version);
-
-    [LoggerMessage(EventId = 4004, Level = LogLevel.Error, Message = "Could not retrieve Sonarr system information.")]
-    public static partial void LogErrorRetrievingSonarrSystemInfo(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 4005,
-        Level = LogLevel.Information,
-        Message = "Missing episode: {SeriesTitle} - S{SeasonNumber:D2}E{EpisodeNumber:D2} (ID: {EpisodeId})"
-    )]
-    public static partial void LogMissingEpisode(this ILogger logger, string seriesTitle, int seasonNumber, int episodeNumber, int episodeId);
-
-    // Upgrade Service Logger Messages
     [LoggerMessage(EventId = 1010, Level = LogLevel.Information, Message = "Starting UpgradeBackgroundService")]
     public static partial void LogStartingUpgradeService(this ILogger logger);
 
@@ -46,9 +16,6 @@ public static partial class LoggerMessages
     [LoggerMessage(EventId = 1013, Level = LogLevel.Information, Message = "Processing {ItemType}: {Title} (ID: {ItemId})")]
     public static partial void LogProcessingItem(this ILogger logger, ItemType itemType, string title, int itemId);
 
-    [LoggerMessage(EventId = 1014, Level = LogLevel.Information, Message = "Item {Title} (ID: {ItemId}) has ongoing download, skipping")]
-    public static partial void LogItemHasOngoingDownload(this ILogger logger, string title, int itemId);
-
     [LoggerMessage(EventId = 4010, Level = LogLevel.Error, Message = "Error initializing upgrade states")]
     public static partial void LogErrorInitializingUpgradeStates(this ILogger logger, Exception ex);
 
@@ -57,9 +24,6 @@ public static partial class LoggerMessages
 
     [LoggerMessage(EventId = 4012, Level = LogLevel.Error, Message = "Error checking queue for item {ItemId}")]
     public static partial void LogErrorCheckingQueueForItem(this ILogger logger, Exception ex, int itemId);
-
-    [LoggerMessage(EventId = 4013, Level = LogLevel.Warning, Message = "UpgradeState not found for series {SeriesId}")]
-    public static partial void LogUpgradeStateNotFoundForSeries(this ILogger logger, int seriesId);
 
     [LoggerMessage(EventId = 4014, Level = LogLevel.Warning, Message = "Series {SeriesId} not found")]
     public static partial void LogSeriesNotFound(this ILogger logger, int seriesId);
@@ -73,14 +37,8 @@ public static partial class LoggerMessages
     [LoggerMessage(EventId = 1017, Level = LogLevel.Information, Message = "Searching for series {SeriesTitle} S{Season}E{Episode}")]
     public static partial void LogSearchingForEpisode(this ILogger logger, string seriesTitle, string season, string episode);
 
-    [LoggerMessage(EventId = 1018, Level = LogLevel.Information, Message = "Completed all searches for series {SeriesTitle}")]
-    public static partial void LogCompletedAllSearchesForSeries(this ILogger logger, string seriesTitle);
-
     [LoggerMessage(EventId = 4015, Level = LogLevel.Error, Message = "Error processing series upgrade for {SeriesId}")]
     public static partial void LogErrorProcessingSeriesUpgrade(this ILogger logger, Exception ex, int seriesId);
-
-    [LoggerMessage(EventId = 4016, Level = LogLevel.Warning, Message = "UpgradeState not found for movie {MovieId}")]
-    public static partial void LogUpgradeStateNotFoundForMovie(this ILogger logger, int movieId);
 
     [LoggerMessage(EventId = 4017, Level = LogLevel.Warning, Message = "Movie {MovieId} not found")]
     public static partial void LogMovieNotFound(this ILogger logger, int movieId);
@@ -93,12 +51,6 @@ public static partial class LoggerMessages
 
     [LoggerMessage(EventId = 1020, Level = LogLevel.Information, Message = "Initialized upgrade states for {SeriesCount} series and {MovieCount} movies")]
     public static partial void LogInitializedUpgradeStates(this ILogger logger, int seriesCount, int movieCount);
-
-    [LoggerMessage(EventId = 1021, Level = LogLevel.Information, Message = "Reset all upgrade states")]
-    public static partial void LogResetAllUpgradeStates(this ILogger logger);
-
-    [LoggerMessage(EventId = 4019, Level = LogLevel.Error, Message = "Error resetting upgrade states")]
-    public static partial void LogErrorResettingUpgradeStates(this ILogger logger, Exception ex);
 
     [LoggerMessage(EventId = 4020, Level = LogLevel.Error, Message = "Error executing series search for {SeriesId}")]
     public static partial void LogErrorExecutingSeriesSearch(this ILogger logger, Exception ex, int seriesId);

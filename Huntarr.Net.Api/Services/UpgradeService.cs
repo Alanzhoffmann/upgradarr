@@ -123,21 +123,11 @@ public class UpgradeService
 
     private async Task<bool> HasSeriesOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
-        try
+        var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, cancellationToken: cancellationToken);
+        if (queue.Records?.Any(q => q.SeriesId == state.ItemId) ?? false)
         {
-            if (state.ItemType is not ItemType.Series)
-                return false;
-
-            var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, cancellationToken: cancellationToken);
-            if (queue.Records?.Any(q => q.SeriesId == state.ItemId) ?? false)
-            {
-                _logger.LogSeriesHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
-                return true;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogErrorCheckingQueueForItem(ex, state.ItemId);
+            _logger.LogSeriesHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
+            return true;
         }
 
         return false;
@@ -145,71 +135,41 @@ public class UpgradeService
 
     private async Task<bool> HasMovieOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
-        try
+        var queue = await _radarrClient.GetQueueAsync(pageSize: 1000, cancellationToken: cancellationToken);
+        if (queue.Records?.Any(q => q.MovieId == state.ItemId) ?? false)
         {
-            if (state.ItemType is not ItemType.Movie)
-                return false;
-
-            var queue = await _radarrClient.GetQueueAsync(pageSize: 1000, cancellationToken: cancellationToken);
-            if (queue.Records?.Any(q => q.MovieId == state.ItemId) ?? false)
-            {
-                _logger.LogMovieIsDownloading(state.Title ?? "Unknown", state.ItemId);
-                return true;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogErrorCheckingQueueForItem(ex, state.ItemId);
+            _logger.LogMovieIsDownloading(state.Title ?? "Unknown", state.ItemId);
+            return true;
         }
 
         return false;
     }
 
-    /// <summary>
-    /// Checks if a specific season has ongoing downloads
-    /// </summary>
-    public async Task<bool> HasSeasonOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
+    private async Task<bool> HasSeasonOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            if (state.ItemType is not ItemType.Season || !state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue)
-                return false;
+        if (!state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue)
+            return false;
 
-            var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, includeEpisode: true, cancellationToken: cancellationToken);
-            if (queue.Records?.Any(q => q.SeriesId == state.ParentSeriesId.Value && q.Episode?.SeasonNumber == state.SeasonNumber.Value) ?? false)
-            {
-                _logger.LogSeasonHasOngoingDownloads(state.SeasonNumber.Value, state.Title ?? "Unknown", state.ParentSeriesId.Value);
-                return true;
-            }
-        }
-        catch (Exception ex)
+        var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, includeEpisode: true, cancellationToken: cancellationToken);
+        if (queue.Records?.Any(q => q.SeriesId == state.ParentSeriesId.Value && q.Episode?.SeasonNumber == state.SeasonNumber.Value) ?? false)
         {
-            _logger.LogErrorCheckingQueueForItem(ex, state.ParentSeriesId ?? 0);
+            _logger.LogSeasonHasOngoingDownloads(state.SeasonNumber.Value, state.Title ?? "Unknown", state.ParentSeriesId.Value);
+            return true;
         }
 
         return false;
     }
 
-    /// <summary>
-    /// Checks if a specific episode is currently downloading
-    /// </summary>
-    public async Task<bool> HasEpisodeOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
+    private async Task<bool> HasEpisodeOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            if (state.ItemType is not ItemType.Episode || !state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue || !state.EpisodeNumber.HasValue)
-                return false;
+        if (!state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue || !state.EpisodeNumber.HasValue)
+            return false;
 
-            var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, includeEpisode: true, cancellationToken: cancellationToken);
-            if (queue.Records?.Any(q => q.EpisodeId == state.ItemId) ?? false)
-            {
-                _logger.LogEpisodeIsDownloading(state.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
-                return true;
-            }
-        }
-        catch (Exception ex)
+        var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, includeEpisode: true, cancellationToken: cancellationToken);
+        if (queue.Records?.Any(q => q.EpisodeId == state.ItemId) ?? false)
         {
-            _logger.LogErrorCheckingQueueForItem(ex, state.ItemId);
+            _logger.LogEpisodeIsDownloading(state.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
+            return true;
         }
 
         return false;
@@ -405,16 +365,7 @@ public class UpgradeService
             var movies = await _radarrClient.GetMoviesAsync(cancellationToken: cancellationToken);
 
             var queueItems = await BuildQueueItemsAsync(series.Where(s => s.Monitored), movies.Where(m => m.Monitored), cancellationToken);
-
-            // Shuffle shows and movies together, but keep season/episode order intact
-            // Missing items are already marked during queue building
-            var shuffledQueue = ShuffleQueue(queueItems);
-
-            // Assign queue positions
-            for (int i = 0; i < shuffledQueue.Count; i++)
-            {
-                shuffledQueue[i].QueuePosition = i;
-            }
+            var shuffledQueue = ShuffleAndAssignPositions(queueItems);
 
             _dbContext.UpgradeStates.AddRange(shuffledQueue);
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -424,6 +375,16 @@ public class UpgradeService
         {
             _logger.LogErrorInitializingUpgradeStates(ex);
         }
+    }
+
+    private static List<UpgradeState> ShuffleAndAssignPositions(List<UpgradeState> items)
+    {
+        var shuffled = ShuffleQueue(items);
+        for (int i = 0; i < shuffled.Count; i++)
+        {
+            shuffled[i].QueuePosition = i;
+        }
+        return shuffled;
     }
 
     /// <summary>
@@ -642,16 +603,7 @@ public class UpgradeService
             var movies = await _radarrClient.GetMoviesAsync(cancellationToken: cancellationToken);
 
             var queueItems = await BuildQueueItemsAsync(series.Where(s => s.Monitored), movies.Where(m => m.Monitored), cancellationToken);
-
-            // Shuffle shows and movies together, but keep season/episode order intact
-            // Missing items are already marked during queue building
-            var shuffledQueue = ShuffleQueue(queueItems);
-
-            // Assign queue positions
-            for (int i = 0; i < shuffledQueue.Count; i++)
-            {
-                shuffledQueue[i].QueuePosition = i;
-            }
+            var shuffledQueue = ShuffleAndAssignPositions(queueItems);
 
             _dbContext.UpgradeStates.AddRange(shuffledQueue);
             await _dbContext.SaveChangesAsync(cancellationToken);
