@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- <PublishAot>true</PublishAot> -->
-    <ContainerRepository>huntarr-net</ContainerRepository>
+    <ContainerRepository>upgradarr</ContainerRepository>
   </PropertyGroup>
 
   <ItemGroup>
