@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Huntarr.Net.Api/Huntarr.Net.Api.csproj" />
+  <Project Path="Huntarr.Net.Clients/Huntarr.Net.Clients.csproj" />
+</Solution>

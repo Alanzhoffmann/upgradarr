@@ -1,0 +1,59 @@
+﻿namespace Huntarr.Net.Clients.Models;
+
+public class ReleaseResource
+{
+    public int Id { get; set; }
+    public string? Guid { get; set; }
+    public QualityModel? Quality { get; set; }
+    public int QualityWeight { get; set; }
+    public int Age { get; set; }
+    public double AgeHours { get; set; }
+    public double AgeMinutes { get; set; }
+    public long Size { get; set; }
+    public int IndexerId { get; set; }
+    public string? Indexer { get; set; }
+    public string? ReleaseGroup { get; set; }
+    public string? SubGroup { get; set; }
+    public string? ReleaseHash { get; set; }
+    public string? Title { get; set; }
+    public bool FullSeason { get; set; }
+    public bool SceneSource { get; set; }
+    public int SeasonNumber { get; set; }
+    public IList<Language>? Languages { get; set; }
+    public int LanguageWeight { get; set; }
+    public string? AirDate { get; set; }
+    public string? SeriesTitle { get; set; }
+    public IList<int>? EpisodeNumbers { get; set; }
+    public IList<int>? AbsoluteEpisodeNumbers { get; set; }
+    public bool Approved { get; set; }
+    public bool TemporarilyRejected { get; set; }
+    public bool Rejected { get; set; }
+    public int TvdbId { get; set; }
+    public int TvRageId { get; set; }
+    public string? ImdbId { get; set; }
+    public IList<string>? Rejections { get; set; }
+    public DateTime PublishDate { get; set; }
+    public string? CommentUrl { get; set; }
+    public string? DownloadUrl { get; set; }
+    public string? InfoUrl { get; set; }
+    public bool EpisodeRequested { get; set; }
+    public bool DownloadAllowed { get; set; }
+    public int ReleaseWeight { get; set; }
+    public int CustomFormatScore { get; set; }
+    public string? MagnetUrl { get; set; }
+    public string? InfoHash { get; set; }
+    public int? Seeders { get; set; }
+    public int? Leechers { get; set; }
+    public string? Protocol { get; set; }
+    public int IndexerFlags { get; set; }
+    public bool IsDaily { get; set; }
+    public bool IsAbsoluteNumbering { get; set; }
+    public bool IsPossibleSpecialEpisode { get; set; }
+    public bool Special { get; set; }
+    public int? SeriesId { get; set; }
+    public int? EpisodeId { get; set; }
+    public IList<int>? EpisodeIds { get; set; }
+    public int? DownloadClientId { get; set; }
+    public string? DownloadClient { get; set; }
+    public bool? ShouldOverride { get; set; }
+}
