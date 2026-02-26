@@ -2,7 +2,7 @@ name: Publish Docker image
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ]
     tags: [ "v*" ]
 
 jobs:
@@ -14,11 +14,38 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
         global-json-file: global.json
+
+    - name: Restore tools
+      run: dotnet tool restore
+
+    - name: Get version from nbgv
+      id: nbgv
+      run: |
+        VERSION_JSON=$(dotnet tool run nbgv get-version -f json)
+        echo "version=$(echo "$VERSION_JSON" | jq -r '.SimpleVersion')" >> $GITHUB_OUTPUT
+        echo "public_release=$(echo "$VERSION_JSON" | jq -r '.PublicRelease')" >> $GITHUB_OUTPUT
+
+    - name: Compute container tags
+      id: tags
+      run: |
+        PUBLIC_RELEASE="${{ steps.nbgv.outputs.public_release }}"
+        VERSION="${{ steps.nbgv.outputs.version }}"
+
+        if [ "$PUBLIC_RELEASE" = "true" ]; then
+          echo "tags=latest;${VERSION}" >> $GITHUB_OUTPUT
+        elif [ "$GITHUB_REF_NAME" = "main" ]; then
+          echo "tags=unstable" >> $GITHUB_OUTPUT
+        else
+          SAFE_BRANCH=$(echo "$GITHUB_REF_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g' | tr '[:upper:]' '[:lower:]')
+          echo "tags=$SAFE_BRANCH" >> $GITHUB_OUTPUT
+        fi
 
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
@@ -31,14 +58,11 @@ jobs:
       id: image
       run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Publish container image
-      run: >
-        dotnet publish Huntarr.Net.Api/Huntarr.Net.Api.csproj
-        -c Release
-        -t:PublishContainer
-        -p:ContainerRegistry=ghcr.io
-        -p:ContainerRepository=${{ steps.image.outputs.name }}
-        -p:ContainerImageTag=${{ github.ref_name }}
+    - name: Publish container
+      run: |
+        dotnet publish Huntarr.Net.Api/Huntarr.Net.Api.csproj \
+          -t:PublishContainer \
+          -c Release \
+          -p:ContainerRegistry=ghcr.io \
+          -p:ContainerRepository=${{ steps.image.outputs.name }} \
+          -p:ContainerImageTags="${{ steps.tags.outputs.tags }}"
