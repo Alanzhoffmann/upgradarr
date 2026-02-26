@@ -47,6 +47,7 @@ builder.Services.AddDbContext<AppDbContext>(
     {
         options.UseSqlite("Data Source=/config/app.db;Cache=Shared");
         options.AddInterceptors(serviceProvider.GetRequiredService<DeleteQueueItemInterceptor>());
+        options.UseModel(Huntarr.Net.Api.CompiledModels.AppDbContextModel.Instance);
     }
 );
 
@@ -94,14 +95,6 @@ upgradeApi
         }
     )
     .WithName("ResetUpgradeStates");
-
-if (!Directory.Exists("/config"))
-{
-    Directory.CreateDirectory("/config");
-}
-
-var dbContext = app.Services.GetRequiredService<AppDbContext>();
-await dbContext.Database.MigrateAsync();
 
 app.Run();
 

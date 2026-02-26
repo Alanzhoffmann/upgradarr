@@ -1,4 +1,5 @@
-﻿using Huntarr.Net.Api.Models;
+﻿using Huntarr.Net.Api.EntityConfigurations;
+using Huntarr.Net.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Huntarr.Net.Api;
@@ -13,6 +14,6 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        modelBuilder.ApplyConfiguration(new QueueRecordEntityConfiguration());
     }
 }
