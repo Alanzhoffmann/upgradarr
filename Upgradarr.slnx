@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Huntarr.Net.Api/Huntarr.Net.Api.csproj" />
   <Project Path="Huntarr.Net.Clients/Huntarr.Net.Clients.csproj" />
+  <Project Path="Huntarr.Net.Data/Huntarr.Net.Data.csproj" />
   <Project Path="Huntarr.Net.Migrations/Huntarr.Net.Migrations.csproj" />
 </Solution>

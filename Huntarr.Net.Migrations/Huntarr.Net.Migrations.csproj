@@ -8,6 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Huntarr.Net.Api/Huntarr.Net.Api.csproj" />
+    <ProjectReference Include="../Huntarr.Net.Data/Huntarr.Net.Data.csproj" />
   </ItemGroup>
 </Project>

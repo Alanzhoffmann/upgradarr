@@ -10,15 +10,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.2" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../Huntarr.Net.Clients/Huntarr.Net.Clients.csproj" />
+    <ProjectReference Include="../Huntarr.Net.Data/Huntarr.Net.Data.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

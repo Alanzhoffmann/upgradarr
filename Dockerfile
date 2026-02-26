@@ -3,6 +3,7 @@ WORKDIR /src
 
 COPY Huntarr.Net.Clients/Huntarr.Net.Clients.csproj Huntarr.Net.Clients/
 COPY Huntarr.Net.Api/Huntarr.Net.Api.csproj Huntarr.Net.Api/
+COPY Huntarr.Net.Data/Huntarr.Net.Data.csproj Huntarr.Net.Data/
 COPY Huntarr.Net.Migrations/Huntarr.Net.Migrations.csproj Huntarr.Net.Migrations/
 
 # Restore migrations (no RID needed - not AOT)
