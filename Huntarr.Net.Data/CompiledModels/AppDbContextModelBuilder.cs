@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 #pragma warning disable 219, 612, 618
 #nullable disable
 
-namespace Huntarr.Net.Api.CompiledModels
+namespace Huntarr.Net.Data.CompiledModels
 {
     public partial class AppDbContextModel
     {

@@ -1,12 +1,13 @@
 ﻿using System.Text.Json.Serialization;
-using Huntarr.Net.Api;
 using Huntarr.Net.Api.BackgroundServices;
 using Huntarr.Net.Api.Interceptors;
-using Huntarr.Net.Api.Models;
 using Huntarr.Net.Api.Options;
 using Huntarr.Net.Api.Services;
 using Huntarr.Net.Clients;
 using Huntarr.Net.Clients.Options;
+using Huntarr.Net.Data;
+using Huntarr.Net.Data.CompiledModels;
+using Huntarr.Net.Data.Models;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -47,7 +48,7 @@ builder.Services.AddDbContext<AppDbContext>(
     {
         options.UseSqlite("Data Source=/config/app.db;Cache=Shared");
         options.AddInterceptors(serviceProvider.GetRequiredService<DeleteQueueItemInterceptor>());
-        options.UseModel(Huntarr.Net.Api.CompiledModels.AppDbContextModel.Instance);
+        options.UseModel(AppDbContextModel.Instance);
     }
 );
 

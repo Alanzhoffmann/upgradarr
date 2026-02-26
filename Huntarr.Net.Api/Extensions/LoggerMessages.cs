@@ -1,4 +1,4 @@
-﻿using Huntarr.Net.Api.Models;
+﻿using Huntarr.Net.Data.Models;
 
 namespace Huntarr.Net.Api.Extensions;
 

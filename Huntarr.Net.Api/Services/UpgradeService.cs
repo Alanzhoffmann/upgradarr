@@ -1,6 +1,7 @@
 using Huntarr.Net.Api.Extensions;
-using Huntarr.Net.Api.Models;
 using Huntarr.Net.Clients;
+using Huntarr.Net.Data;
+using Huntarr.Net.Data.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Huntarr.Net.Api.Services;

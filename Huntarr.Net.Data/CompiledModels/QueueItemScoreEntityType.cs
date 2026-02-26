@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using Huntarr.Net.Api.Models;
+using Huntarr.Net.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 #pragma warning disable 219, 612, 618
 #nullable disable
 
-namespace Huntarr.Net.Api.CompiledModels
+namespace Huntarr.Net.Data.CompiledModels
 {
     [EntityFrameworkInternal]
     public partial class QueueItemScoreEntityType
@@ -18,7 +18,7 @@ namespace Huntarr.Net.Api.CompiledModels
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
         {
             var runtimeEntityType = model.AddEntityType(
-                "Huntarr.Net.Api.Models.QueueItemScore",
+                "Huntarr.Net.Data.Models.QueueItemScore",
                 typeof(QueueItemScore),
                 baseEntityType,
                 propertyCount: 4,

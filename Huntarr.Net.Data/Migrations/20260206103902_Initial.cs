@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Huntarr.Net.Api.Migrations
+namespace Huntarr.Net.Data.Migrations
 {
     /// <inheritdoc />
     public partial class Initial : Migration

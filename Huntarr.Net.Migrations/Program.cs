@@ -1,4 +1,4 @@
-using Huntarr.Net.Api;
+using Huntarr.Net.Data;
 using Microsoft.EntityFrameworkCore;
 
 if (!Directory.Exists("/config"))

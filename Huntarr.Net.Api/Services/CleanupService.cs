@@ -1,10 +1,11 @@
 ﻿using System.Runtime.CompilerServices;
-using Huntarr.Net.Api.Models;
 using Huntarr.Net.Api.Options;
 using Huntarr.Net.Clients;
 using Huntarr.Net.Clients.Enums;
 using Huntarr.Net.Clients.Interfaces;
 using Huntarr.Net.Clients.Models;
+using Huntarr.Net.Data;
+using Huntarr.Net.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 

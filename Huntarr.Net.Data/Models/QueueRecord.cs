@@ -1,6 +1,6 @@
 ﻿using Huntarr.Net.Clients.Enums;
 
-namespace Huntarr.Net.Api.Models;
+namespace Huntarr.Net.Data.Models;
 
 public class QueueRecord
 {

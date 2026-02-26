@@ -1,8 +1,8 @@
-using Huntarr.Net.Api.Models;
+using Huntarr.Net.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Huntarr.Net.Api.EntityConfigurations;
+namespace Huntarr.Net.Data.EntityConfigurations;
 
 public class QueueRecordEntityConfiguration : IEntityTypeConfiguration<QueueRecord>
 {

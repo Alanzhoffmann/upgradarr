@@ -1,8 +1,8 @@
-﻿using Huntarr.Net.Api.EntityConfigurations;
-using Huntarr.Net.Api.Models;
+﻿using Huntarr.Net.Data.EntityConfigurations;
+using Huntarr.Net.Data.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Huntarr.Net.Api;
+namespace Huntarr.Net.Data;
 
 public class AppDbContext : DbContext
 {

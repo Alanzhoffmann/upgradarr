@@ -1,4 +1,4 @@
-namespace Huntarr.Net.Api.Models;
+namespace Huntarr.Net.Data.Models;
 
 /// <summary>
 /// Represents the search state of an upgrade queue item

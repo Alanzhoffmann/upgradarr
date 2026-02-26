@@ -1,7 +1,8 @@
-﻿using Huntarr.Net.Api.Models;
-using Huntarr.Net.Api.Services;
+﻿using Huntarr.Net.Api.Services;
 using Huntarr.Net.Clients;
 using Huntarr.Net.Clients.Enums;
+using Huntarr.Net.Data;
+using Huntarr.Net.Data.Models;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
