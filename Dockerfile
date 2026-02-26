@@ -16,8 +16,8 @@ COPY . .
 # Publish migrations runner as regular dotnet app
 RUN dotnet publish Huntarr.Net.Migrations/Huntarr.Net.Migrations.csproj -c Release -o /app/migrations --no-restore
 
-# Publish API as AOT native binary
-RUN dotnet publish Huntarr.Net.Api/Huntarr.Net.Api.csproj -c Release -r linux-x64 -o /app/publish --no-restore
+# Publish API as AOT native binary (no --no-restore; AOT requires ilcompiler setup at restore time)
+RUN dotnet publish Huntarr.Net.Api/Huntarr.Net.Api.csproj -c Release -r linux-x64 -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
