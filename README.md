@@ -32,7 +32,7 @@ To use this, add the following to your docker compose:
 ```
 services:
   upgradarr:
-    image: ghcr.io/alanzhoffmann/upgradarr:main
+    image: ghcr.io/alanzhoffmann/upgradarr:unstable
     container_name: upgradarr
     user: ${PUID}:${PGID}
     environment:
