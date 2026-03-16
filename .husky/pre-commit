@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo 'Run pre-commit tasks...'
+
+dotnet husky run --group pre-commit-operations
