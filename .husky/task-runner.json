@@ -2,13 +2,35 @@
    "$schema": "https://alirezanet.github.io/Husky.Net/schema.json",
    "tasks": [
       {
-         "name": "welcome-message-example",
-         "command": "bash",
-         "args": [ "-c", "echo Husky.Net is awesome!" ],
-         "windows": {
-            "command": "cmd",
-            "args": ["/c", "echo Husky.Net is awesome!" ]
-         }
+         "name": "dotnet-tool-restore",
+         "group": "pre-commit-operations",
+         "command": "dotnet",
+         "args": [
+            "tool",
+            "restore"
+         ],
+         "include": [
+            "**/*.cs"
+         ],
+         "exclude": [
+            "*Migrations/*.cs"
+         ]
+      },
+      {
+         "name": "dotnet-csharpier-staged-files",
+         "group": "pre-commit-operations",
+         "command": "dotnet",
+         "args": [
+            "csharpier",
+            "format",
+            "${staged}"
+         ],
+         "include": [
+            "**/*.cs"
+         ],
+         "exclude": [
+            "*Migrations/*.cs"
+         ]
       }
    ]
 }
