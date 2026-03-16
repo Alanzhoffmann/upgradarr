@@ -9,4 +9,12 @@
     <PackageReference Include="Microsoft.AspNetCore.Http.Extensions" Version="2.3.9" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.2" />
   </ItemGroup>
+  <Target Name="Husky" AfterTargets="Restore" Condition="'$(HUSKY)' != 0" Inputs="../.config/dotnet-tools.json" Outputs="../.husky/_/install.stamp">
+    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" />
+    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory=".." />
+    <Touch Files="../.husky/_/install.stamp" AlwaysCreate="true" Condition="Exists('../.husky/_')" />
+    <ItemGroup>
+      <FileWrites Include="../.husky/_/install.stamp" />
+    </ItemGroup>
+  </Target>
 </Project>
