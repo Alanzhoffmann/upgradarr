@@ -1,4 +1,4 @@
-namespace Huntarr.Net.Clients.Models;
+namespace Upgradarr.Apps.Sonarr.Models;
 
 public class EpisodeSearchCommand
 {

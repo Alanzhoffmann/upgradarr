@@ -3,6 +3,7 @@ using Huntarr.Net.Api.Models;
 using Huntarr.Net.Clients;
 using Microsoft.EntityFrameworkCore;
 using Upgradarr.Apps.Radarr.Models;
+using Upgradarr.Apps.Sonarr.Models;
 
 namespace Huntarr.Net.Api.Services;
 
@@ -466,7 +467,7 @@ public class UpgradeService
     /// Sets IsMissing status immediately when a missing episode is detected.
     /// </summary>
     private async Task<List<UpgradeState>> BuildQueueItemsAsync(
-        IEnumerable<Clients.Models.SeriesResource> series,
+        IEnumerable<SeriesResource> series,
         IEnumerable<MovieResource> movies,
         CancellationToken cancellationToken = default
     )

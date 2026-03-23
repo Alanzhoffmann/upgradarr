@@ -15,11 +15,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Huntarr.Net.Clients/Huntarr.Net.Clients.csproj" />
     <ProjectReference Include="../Upgradarr.Apps.Radarr/Upgradarr.Apps.Radarr.csproj" />
+    <ProjectReference Include="../Upgradarr.Apps.Sonarr/Upgradarr.Apps.Sonarr.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
     <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.EntityFrameworkCore.GeneratedInterceptors</InterceptorsNamespaces>
   </PropertyGroup>
+
+  <Target Name="Husky" AfterTargets="Restore" Condition="'$(HUSKY)' != 0" Inputs="../.config/dotnet-tools.json" Outputs="../.husky/_/install.stamp">
+    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" />
+    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory=".." />
+    <Touch Files="../.husky/_/install.stamp" AlwaysCreate="true" Condition="Exists('../.husky/_')" />
+    <ItemGroup>
+      <FileWrites Include="../.husky/_/install.stamp" />
+    </ItemGroup>
+  </Target>
 </Project>
