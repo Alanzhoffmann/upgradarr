@@ -2,10 +2,8 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Sonarr.Models;
-using Upgradarr.Apps.Sonarr.Options;
 
 namespace Upgradarr.Apps.Sonarr;
 
@@ -14,14 +12,9 @@ public class SonarrClient
     private readonly HttpClient _client;
     private readonly ILogger<SonarrClient> _logger;
 
-    public SonarrClient(HttpClient client, IOptionsSnapshot<SonarrOptions> options, ILogger<SonarrClient> logger)
+    public SonarrClient(HttpClient client, ILogger<SonarrClient> logger)
     {
         _client = client;
-        _client.BaseAddress = new Uri(options.Value.BaseUrl);
-        if (!string.IsNullOrEmpty(options.Value.ApiKey))
-        {
-            _client.DefaultRequestHeaders.Add("X-Api-Key", options.Value.ApiKey);
-        }
         _logger = logger;
     }
 
