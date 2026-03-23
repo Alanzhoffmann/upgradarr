@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Upgradarr.Apps.Enums;
 using Upgradarr.Apps.Interfaces;
+using Upgradarr.Apps.Radarr.Models;
 
 namespace Huntarr.Net.Api.Services;
 

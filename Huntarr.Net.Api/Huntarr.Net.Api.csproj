@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Huntarr.Net.Clients/Huntarr.Net.Clients.csproj" />
+    <ProjectReference Include="../Upgradarr.Apps.Radarr/Upgradarr.Apps.Radarr.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

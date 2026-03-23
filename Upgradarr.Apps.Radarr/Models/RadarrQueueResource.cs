@@ -1,8 +1,10 @@
 ﻿using System.Text.Json.Serialization;
-using Huntarr.Net.Clients.Enums;
-using Huntarr.Net.Clients.Interfaces;
+using Huntarr.Net.Clients.Models;
+using Upgradarr.Apps.Enums;
+using Upgradarr.Apps.Interfaces;
+using Upgradarr.Apps.Models;
 
-namespace Huntarr.Net.Clients.Models;
+namespace Upgradarr.Apps.Radarr.Models;
 
 public record RadarrQueueResource : IQueueResource
 {

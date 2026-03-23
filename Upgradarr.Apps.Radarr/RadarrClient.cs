@@ -1,10 +1,11 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using Huntarr.Net.Clients.Models;
-using Huntarr.Net.Clients.Options;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Upgradarr.Apps.Models;
+using Upgradarr.Apps.Radarr.Models;
+using Upgradarr.Apps.Radarr.Options;
 
 namespace Huntarr.Net.Clients;
 

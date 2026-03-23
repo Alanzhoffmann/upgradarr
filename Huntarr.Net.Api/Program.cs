@@ -8,6 +8,7 @@ using Huntarr.Net.Api.Services;
 using Huntarr.Net.Clients;
 using Huntarr.Net.Clients.Options;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Apps.Radarr.Options;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 

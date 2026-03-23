@@ -2,6 +2,7 @@ using Huntarr.Net.Api.Extensions;
 using Huntarr.Net.Api.Models;
 using Huntarr.Net.Clients;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Apps.Radarr.Models;
 
 namespace Huntarr.Net.Api.Services;
 
@@ -466,7 +467,7 @@ public class UpgradeService
     /// </summary>
     private async Task<List<UpgradeState>> BuildQueueItemsAsync(
         IEnumerable<Clients.Models.SeriesResource> series,
-        IEnumerable<Clients.Models.MovieResource> movies,
+        IEnumerable<MovieResource> movies,
         CancellationToken cancellationToken = default
     )
     {

@@ -2,4 +2,5 @@
   <Project Path="Huntarr.Net.Api/Huntarr.Net.Api.csproj" />
   <Project Path="Huntarr.Net.Clients/Huntarr.Net.Clients.csproj" />
   <Project Path="Upgradarr.Apps/Upgradarr.Apps.csproj" />
+  <Project Path="Upgradarr.Apps.Radarr/Upgradarr.Apps.Radarr.csproj" />
 </Solution>

@@ -1,4 +1,4 @@
-﻿namespace Huntarr.Net.Clients.Options;
+﻿namespace Upgradarr.Apps.Radarr.Options;
 
 public record RadarrOptions
 {
