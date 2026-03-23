@@ -5,6 +5,7 @@ using Huntarr.Net.Clients.Options;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Upgradarr.Apps.Models;
 
 namespace Huntarr.Net.Clients;
 

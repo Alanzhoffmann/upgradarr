@@ -1,4 +1,6 @@
-﻿namespace Huntarr.Net.Clients.Models;
+﻿using Upgradarr.Apps.Models;
+
+namespace Huntarr.Net.Clients.Models;
 
 public record SeriesResource
 {

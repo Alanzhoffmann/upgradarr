@@ -1,7 +1,7 @@
-﻿using Huntarr.Net.Clients.Enums;
-using Huntarr.Net.Clients.Models;
+﻿using Huntarr.Net.Clients.Models;
+using Upgradarr.Apps.Enums;
 
-namespace Huntarr.Net.Clients.Interfaces;
+namespace Upgradarr.Apps.Interfaces;
 
 public interface IQueueResource : IHasSource
 {

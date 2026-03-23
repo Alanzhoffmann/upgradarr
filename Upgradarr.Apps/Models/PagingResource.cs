@@ -1,6 +1,6 @@
-﻿using Huntarr.Net.Clients.Enums;
+﻿using Upgradarr.Apps.Enums;
 
-namespace Huntarr.Net.Clients.Models;
+namespace Upgradarr.Apps.Models;
 
 public record PagingResource<T>
 {

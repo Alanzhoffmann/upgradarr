@@ -1,6 +1,6 @@
-﻿using Huntarr.Net.Clients.Enums;
+﻿using Upgradarr.Apps.Enums;
 
-namespace Huntarr.Net.Clients.Interfaces;
+namespace Upgradarr.Apps.Interfaces;
 
 public interface IHasSource
 {

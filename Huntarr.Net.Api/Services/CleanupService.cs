@@ -2,11 +2,11 @@
 using Huntarr.Net.Api.Models;
 using Huntarr.Net.Api.Options;
 using Huntarr.Net.Clients;
-using Huntarr.Net.Clients.Enums;
-using Huntarr.Net.Clients.Interfaces;
 using Huntarr.Net.Clients.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Upgradarr.Apps.Enums;
+using Upgradarr.Apps.Interfaces;
 
 namespace Huntarr.Net.Api.Services;
 

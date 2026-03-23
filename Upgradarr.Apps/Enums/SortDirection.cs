@@ -1,4 +1,4 @@
-﻿namespace Huntarr.Net.Clients.Enums;
+﻿namespace Upgradarr.Apps.Enums;
 
 public enum SortDirection
 {
