@@ -67,39 +67,17 @@ public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
         var radarrClient = context.GetService<RadarrClient>();
         foreach (var entity in enumerable)
         {
-            bool allDeleted = true;
-            var itemsToRequeu = new List<(ItemType, int, int?, int?, int?)>();
-
-            foreach (var itemScore in entity.ItemScores)
-            {
-                if (
-                    !await radarrClient.DeleteQueueItemAsync(
-                        itemScore.ItemId,
-                        removeFromClient: true,
-                        blocklist: true,
-                        skipRedownload: true,
-                        cancellationToken: cancellationToken
-                    )
-                )
-                {
-                    allDeleted = false;
-                }
-                else
-                {
-                    // Add movie to re-queue
-                    itemsToRequeu.Add((ItemType.Movie, itemScore.ItemId, null, null, null));
-                }
-            }
+            var (allDeleted, itemsToRequeue) = await radarrClient.DeleteQueueItemsAsync(entity, cancellationToken);
 
             if (allDeleted)
             {
                 context.Remove(entity);
+            }
 
-                // Add items to front of upgrade queue
-                if (itemsToRequeu.Count > 0)
-                {
-                    await upgradeService.AddItemsToFrontOfQueueAsync(itemsToRequeu, cancellationToken);
-                }
+            // Add items to front of upgrade queue
+            if (itemsToRequeue.Count > 0)
+            {
+                await upgradeService.AddItemsToFrontOfQueueAsync(itemsToRequeue, cancellationToken);
             }
         }
     }
@@ -114,63 +92,17 @@ public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
         var sonarrClient = context.GetService<SonarrClient>();
         foreach (var entity in entities)
         {
-            bool allDeleted = true;
-            var itemsToRequeue = new List<(ItemType, int, int?, int?, int?)>();
-
-            foreach (var itemScore in entity.ItemScores)
-            {
-                if (
-                    !await sonarrClient.DeleteQueueItemAsync(
-                        itemScore.ItemId,
-                        removeFromClient: true,
-                        blocklist: true,
-                        skipRedownload: true,
-                        cancellationToken: cancellationToken
-                    )
-                )
-                {
-                    allDeleted = false;
-                }
-                else
-                {
-                    // Get episode details to determine show/season/episode to re-queue
-                    try
-                    {
-                        var episodes = await sonarrClient.GetEpisodesAsync(episodeIds: [itemScore.ItemId], cancellationToken: cancellationToken);
-                        var episode = episodes.FirstOrDefault();
-
-                        if (episode is not null)
-                        {
-                            // Add show, season, and episode to re-queue
-                            var seriesId = episode.SeriesId;
-
-                            // Get series to add it back
-                            var series = await sonarrClient.GetSeriesByIdAsync(seriesId, cancellationToken: cancellationToken);
-                            if (series is not null && series.Monitored)
-                            {
-                                itemsToRequeue.Add((ItemType.Series, seriesId, null, null, null));
-                                itemsToRequeue.Add((ItemType.Season, episode.SeasonNumber, seriesId, episode.SeasonNumber, null));
-                                itemsToRequeue.Add((ItemType.Episode, episode.Id, seriesId, episode.SeasonNumber, episode.EpisodeNumber));
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // If we can't get episode details, just add the episode ID back
-                        itemsToRequeue.Add((ItemType.Episode, itemScore.ItemId, null, null, null));
-                    }
-                }
-            }
+            var (allDeleted, itemsToRequeue) = await sonarrClient.DeleteQueueItemsAsync(entity, cancellationToken);
 
             if (allDeleted)
             {
                 context.Remove(entity);
+            }
 
-                // Add items to front of upgrade queue
-                if (itemsToRequeue.Count > 0)
-                {
-                    await upgradeService.AddItemsToFrontOfQueueAsync(itemsToRequeue, cancellationToken);
-                }
+            // Add items to front of upgrade queue
+            if (itemsToRequeue.Count > 0)
+            {
+                await upgradeService.AddItemsToFrontOfQueueAsync(itemsToRequeue, cancellationToken);
             }
         }
     }

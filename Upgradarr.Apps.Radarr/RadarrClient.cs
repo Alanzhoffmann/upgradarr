@@ -2,12 +2,14 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
+using Upgradarr.Apps.Enums;
+using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr.Models;
 
 namespace Upgradarr.Apps.Radarr;
 
-public class RadarrClient
+public class RadarrClient : IQueueManager
 {
     private readonly HttpClient _client;
     private readonly ILogger<RadarrClient> _logger;
@@ -104,6 +106,38 @@ public class RadarrClient
             cancellationToken
         );
         return await response.Content.ReadFromJsonAsync(RadarrClientJsonSerializerContext.Default.CommandResource, cancellationToken);
+    }
+
+    public async Task<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
+        QueueRecord record,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var itemsToRequeue = new List<ItemToQueue>();
+        var allDeleted = true;
+
+        foreach (var itemScore in record.ItemScores)
+        {
+            if (
+                !await DeleteQueueItemAsync(
+                    itemScore.ItemId,
+                    removeFromClient: true,
+                    blocklist: true,
+                    skipRedownload: true,
+                    cancellationToken: cancellationToken
+                )
+            )
+            {
+                allDeleted = false;
+            }
+            else
+            {
+                // Add movie to re-queue
+                itemsToRequeue.Add(new(ItemType.Movie, itemScore.ItemId));
+            }
+        }
+
+        return (allDeleted, itemsToRequeue);
     }
 }
 

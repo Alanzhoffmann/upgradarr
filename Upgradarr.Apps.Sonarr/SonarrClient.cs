@@ -2,12 +2,14 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
+using Upgradarr.Apps.Enums;
+using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Sonarr.Models;
 
 namespace Upgradarr.Apps.Sonarr;
 
-public class SonarrClient
+public class SonarrClient : IQueueManager
 {
     private readonly HttpClient _client;
     private readonly ILogger<SonarrClient> _logger;
@@ -159,6 +161,62 @@ public class SonarrClient
             cancellationToken
         );
         return await response.Content.ReadFromJsonAsync(SonarrClientJsonSerializerContext.Default.CommandResource, cancellationToken);
+    }
+
+    public async Task<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
+        QueueRecord record,
+        CancellationToken cancellationToken = default
+    )
+    {
+        bool allDeleted = true;
+        var itemsToRequeue = new List<ItemToQueue>();
+
+        foreach (var itemScore in record.ItemScores)
+        {
+            if (
+                !await DeleteQueueItemAsync(
+                    itemScore.ItemId,
+                    removeFromClient: true,
+                    blocklist: true,
+                    skipRedownload: true,
+                    cancellationToken: cancellationToken
+                )
+            )
+            {
+                allDeleted = false;
+            }
+            else
+            {
+                // Get episode details to determine show/season/episode to re-queue
+                try
+                {
+                    var episodes = await GetEpisodesAsync(episodeIds: [itemScore.ItemId], cancellationToken: cancellationToken);
+                    var episode = episodes.FirstOrDefault();
+
+                    if (episode is not null)
+                    {
+                        // Add show, season, and episode to re-queue
+                        var seriesId = episode.SeriesId;
+
+                        // Get series to add it back
+                        var series = await GetSeriesByIdAsync(seriesId, cancellationToken: cancellationToken);
+                        if (series is not null && series.Monitored)
+                        {
+                            itemsToRequeue.Add(new(ItemType.Series, seriesId));
+                            itemsToRequeue.Add(new(ItemType.Season, episode.SeasonNumber, seriesId, episode.SeasonNumber));
+                            itemsToRequeue.Add(new(ItemType.Episode, episode.Id, seriesId, episode.SeasonNumber, episode.EpisodeNumber));
+                        }
+                    }
+                }
+                catch
+                {
+                    // If we can't get episode details, just add the episode ID back
+                    itemsToRequeue.Add(new(ItemType.Episode, itemScore.ItemId));
+                }
+            }
+        }
+
+        return (allDeleted, itemsToRequeue);
     }
 }
 

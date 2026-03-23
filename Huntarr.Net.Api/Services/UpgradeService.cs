@@ -764,10 +764,7 @@ public class UpgradeService
     /// <summary>
     /// Add items to the front of the queue (for cleanup re-processing)
     /// </summary>
-    public async Task AddItemsToFrontOfQueueAsync(
-        IList<(ItemType itemType, int itemId, int? parentSeriesId, int? seasonNumber, int? episodeNumber)> items,
-        CancellationToken cancellationToken = default
-    )
+    public async Task AddItemsToFrontOfQueueAsync(IList<ItemToQueue> items, CancellationToken cancellationToken = default)
     {
         try
         {
