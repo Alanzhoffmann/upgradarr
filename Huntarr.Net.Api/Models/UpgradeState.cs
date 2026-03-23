@@ -1,3 +1,5 @@
+using Upgradarr.Apps.Enums;
+
 namespace Huntarr.Net.Api.Models;
 
 public class UpgradeState

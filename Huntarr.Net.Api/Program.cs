@@ -6,6 +6,7 @@ using Huntarr.Net.Api.Models;
 using Huntarr.Net.Api.Options;
 using Huntarr.Net.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Sonarr.Extensions;
 

@@ -1,6 +1,6 @@
-using Huntarr.Net.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Upgradarr.Apps.Models;
 
 namespace Huntarr.Net.Api.EntityConfigurations;
 

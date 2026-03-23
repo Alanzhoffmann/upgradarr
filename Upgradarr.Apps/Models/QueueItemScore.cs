@@ -1,4 +1,4 @@
-namespace Huntarr.Net.Api.Models;
+namespace Upgradarr.Apps.Models;
 
 public class QueueItemScore
 {

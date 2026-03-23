@@ -1,4 +1,4 @@
-namespace Huntarr.Net.Api.Models;
+namespace Upgradarr.Apps.Enums;
 
 /// <summary>
 /// Represents the type of item in the upgrade queue

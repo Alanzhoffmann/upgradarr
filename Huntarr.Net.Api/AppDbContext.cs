@@ -1,5 +1,6 @@
 ﻿using Huntarr.Net.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Apps.Models;
 
 namespace Huntarr.Net.Api;
 

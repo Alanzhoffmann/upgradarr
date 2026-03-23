@@ -1,6 +1,8 @@
 using Huntarr.Net.Api.Extensions;
 using Huntarr.Net.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Apps.Enums;
+using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr;
 using Upgradarr.Apps.Radarr.Models;
 using Upgradarr.Apps.Sonarr;

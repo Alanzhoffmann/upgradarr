@@ -1,10 +1,10 @@
 ﻿using System.Runtime.CompilerServices;
-using Huntarr.Net.Api.Models;
 using Huntarr.Net.Api.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Upgradarr.Apps.Enums;
 using Upgradarr.Apps.Interfaces;
+using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr;
 using Upgradarr.Apps.Radarr.Models;
 using Upgradarr.Apps.Sonarr;
