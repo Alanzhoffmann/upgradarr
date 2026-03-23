@@ -1,8 +1,9 @@
 using Huntarr.Net.Api.Extensions;
 using Huntarr.Net.Api.Models;
-using Huntarr.Net.Clients;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Apps.Radarr;
 using Upgradarr.Apps.Radarr.Models;
+using Upgradarr.Apps.Sonarr;
 using Upgradarr.Apps.Sonarr.Models;
 
 namespace Huntarr.Net.Api.Services;

@@ -2,26 +2,19 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr.Models;
-using Upgradarr.Apps.Radarr.Options;
 
-namespace Huntarr.Net.Clients;
+namespace Upgradarr.Apps.Radarr;
 
 public class RadarrClient
 {
     private readonly HttpClient _client;
     private readonly ILogger<RadarrClient> _logger;
 
-    public RadarrClient(HttpClient client, IOptionsSnapshot<RadarrOptions> options, ILogger<RadarrClient> logger)
+    public RadarrClient(HttpClient client, ILogger<RadarrClient> logger)
     {
         _client = client;
-        _client.BaseAddress = new Uri(options.Value.BaseUrl);
-        if (!string.IsNullOrEmpty(options.Value.ApiKey))
-        {
-            _client.DefaultRequestHeaders.Add("X-Api-Key", options.Value.ApiKey);
-        }
         _logger = logger;
     }
 

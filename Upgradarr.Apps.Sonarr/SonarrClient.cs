@@ -7,7 +7,7 @@ using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Sonarr.Models;
 using Upgradarr.Apps.Sonarr.Options;
 
-namespace Huntarr.Net.Clients;
+namespace Upgradarr.Apps.Sonarr;
 
 public class SonarrClient
 {

@@ -1,9 +1,10 @@
 ﻿using Huntarr.Net.Api.Models;
 using Huntarr.Net.Api.Services;
-using Huntarr.Net.Clients;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Upgradarr.Apps.Enums;
+using Upgradarr.Apps.Radarr;
+using Upgradarr.Apps.Sonarr;
 
 namespace Huntarr.Net.Api.Interceptors;
 
