@@ -1,5 +1,4 @@
 ﻿using System.Text.Json.Serialization;
-using Huntarr.Net.Clients.Models;
 using Upgradarr.Apps.Enums;
 using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Models;
