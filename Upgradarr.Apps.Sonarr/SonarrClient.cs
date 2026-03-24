@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Sonarr.Extensions;
@@ -17,12 +18,14 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
 {
     private readonly HttpClient _client;
     private readonly TimeProvider _timeProvider;
+    private readonly HybridCache _hybridCache;
 
     public SonarrClient(HttpClient client, ILogger<SonarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
         : base(logger)
     {
         _client = client;
         _timeProvider = timeProvider;
+        _hybridCache = hybridCache;
     }
 
     public RecordSource SourceName => RecordSource.Sonarr;
@@ -316,15 +319,28 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
     }
 
     public async Task<IList<SeriesResource>> GetSeriesAsync(CancellationToken cancellationToken = default) =>
-        await _client.GetFromJsonAsync("/api/v3/series", SonarrClientJsonSerializerContext.Default.IListSeriesResource, cancellationToken) ?? [];
+        await _hybridCache.GetOrCreateAsync(
+            "sonarr_series",
+            async ct => await _client.GetFromJsonAsync("/api/v3/series", SonarrClientJsonSerializerContext.Default.IListSeriesResource, ct) ?? [],
+            options: null,
+            tags: ["sonarr", "sonarr_series"],
+            cancellationToken: cancellationToken
+        );
 
     public async Task<SeriesResource?> GetSeriesByIdAsync(int id, bool includeSeasonImages = false, CancellationToken cancellationToken = default)
     {
         var queryBuilder = new QueryBuilder { { "includeSeasonImages", includeSeasonImages.ToString().ToLower() } };
-        return await _client.GetFromJsonAsync(
-            $"/api/v3/series/{id}{queryBuilder.ToQueryString()}",
-            SonarrClientJsonSerializerContext.Default.SeriesResource,
-            cancellationToken
+        return await _hybridCache.GetOrCreateAsync(
+            $"sonarr_series_{id}_{includeSeasonImages}",
+            async ct =>
+                await _client.GetFromJsonAsync(
+                    $"/api/v3/series/{id}{queryBuilder.ToQueryString()}",
+                    SonarrClientJsonSerializerContext.Default.SeriesResource,
+                    ct
+                ),
+            options: null,
+            tags: ["sonarr", "sonarr_series", $"sonarr_series_{id}"],
+            cancellationToken: cancellationToken
         );
     }
 
@@ -409,6 +425,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
         {
             var response = await _client.DeleteAsync($"/api/v3/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
             response.EnsureSuccessStatusCode();
+            await _hybridCache.RemoveByTagAsync("sonarr", cancellationToken);
         }
         catch (Exception ex)
         {

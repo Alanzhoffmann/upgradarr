@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr.Extensions;
@@ -17,12 +18,14 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
 {
     private readonly HttpClient _client;
     private readonly TimeProvider _timeProvider;
+    private readonly HybridCache _hybridCache;
 
     public RadarrClient(HttpClient client, ILogger<RadarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
         : base(logger)
     {
         _client = client;
         _timeProvider = timeProvider;
+        _hybridCache = hybridCache;
     }
 
     public RecordSource SourceName => RecordSource.Radarr;
@@ -133,15 +136,25 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         if (languageId.HasValue)
             queryBuilder.Add("languageId", languageId.Value.ToString());
 
-        return await _client.GetFromJsonAsync(
-                $"/api/v3/movie{queryBuilder.ToQueryString()}",
-                RadarrClientJsonSerializerContext.Default.IListMovieResource,
-                cancellationToken
-            ) ?? [];
+        return await _hybridCache.GetOrCreateAsync(
+            $"radarr_movies_{tmdbId}_{excludeLocalCovers}_{languageId}",
+            async ct =>
+                await _client.GetFromJsonAsync($"/api/v3/movie{queryBuilder.ToQueryString()}", RadarrClientJsonSerializerContext.Default.IListMovieResource, ct)
+                ?? [],
+            options: null,
+            tags: ["radarr", "radarr_movies"],
+            cancellationToken: cancellationToken
+        );
     }
 
     public async Task<MovieResource?> GetMovieByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        await _client.GetFromJsonAsync($"/api/v3/movie/{id}", RadarrClientJsonSerializerContext.Default.MovieResource, cancellationToken);
+        await _hybridCache.GetOrCreateAsync(
+            $"radarr_movie_{id}",
+            async ct => await _client.GetFromJsonAsync($"/api/v3/movie/{id}", RadarrClientJsonSerializerContext.Default.MovieResource, ct),
+            options: null,
+            tags: ["radarr", "radarr_movies", $"radarr_movie_{id}"],
+            cancellationToken: cancellationToken
+        );
 
     public async Task<PagingResource<RadarrQueueResource>> GetQueueAsync(
         int page = 1,
@@ -185,6 +198,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         {
             var response = await _client.DeleteAsync($"/api/v3/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
             response.EnsureSuccessStatusCode();
+            await _hybridCache.RemoveByTagAsync("radarr", cancellationToken);
             return true;
         }
         catch (Exception ex)

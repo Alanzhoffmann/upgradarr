@@ -13,6 +13,8 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddSonarr()
         {
+            services.AddHybridCache();
+
             services
                 .AddOptions<SonarrOptions>()
                 .Configure(
