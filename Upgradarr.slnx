@@ -6,4 +6,5 @@
   <Project Path="Upgradarr.Apps.Radarr/Upgradarr.Apps.Radarr.csproj" />
   <Project Path="Upgradarr.Data/Upgradarr.Data.csproj" />
   <Project Path="Upgradarr.Domain/Upgradarr.Domain.csproj" />
+  <Project Path="Upgradarr.Application.Tests/Upgradarr.Application.Tests.csproj" />
 </Solution>
