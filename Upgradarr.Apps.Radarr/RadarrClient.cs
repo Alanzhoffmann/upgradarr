@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr.Extensions;
@@ -13,75 +14,71 @@ using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Apps.Radarr;
 
-public class RadarrClient : IQueueManager, IUpgradeManager
+public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager, IUpgradeManager
 {
     private readonly HttpClient _client;
-    private readonly ILogger<RadarrClient> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly HybridCache _hybridCache;
 
-    public RadarrClient(HttpClient client, ILogger<RadarrClient> logger, TimeProvider timeProvider)
+    public RadarrClient(HttpClient client, ILogger<RadarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
+        : base(logger)
     {
         _client = client;
-        _logger = logger;
         _timeProvider = timeProvider;
+        _hybridCache = hybridCache;
     }
 
     public RecordSource SourceName => RecordSource.Radarr;
 
     public bool CanHandle(ItemType itemType) => itemType == ItemType.Movie;
 
-    public async Task<List<UpgradeState>> BuildQueueItemsAsync(CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<UpgradeState> BuildQueueItemsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var movies = await GetMoviesAsync(cancellationToken: cancellationToken);
-        var queueItems = new List<UpgradeState>();
 
         foreach (var m in movies.Where(m => m.Monitored))
         {
             if (m.InCinemas.HasValue && m.InCinemas.Value > _timeProvider.GetUtcNow())
                 continue;
 
-            queueItems.Add(
-                new UpgradeState
-                {
-                    ItemId = m.Id,
-                    Title = m.Title,
-                    ItemType = ItemType.Movie,
-                    SearchState = SearchState.Pending,
-                    IsMonitored = true,
-                    IsMissing = !m.HasFile,
-                    ReleaseDate = m.InCinemas,
-                    CreatedAt = _timeProvider.GetUtcNow(),
-                }
-            );
+            yield return new UpgradeState
+            {
+                ItemId = m.Id,
+                Title = m.Title,
+                ItemType = ItemType.Movie,
+                SearchState = SearchState.Pending,
+                IsMonitored = true,
+                IsMissing = !m.HasFile,
+                ReleaseDate = m.InCinemas,
+                CreatedAt = _timeProvider.GetUtcNow(),
+            };
         }
-        return queueItems;
     }
 
-    public async Task<List<UpgradeState>> GetNewQueueItemsAsync(HashSet<int> existingIds, CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<UpgradeState> GetNewQueueItemsAsync(
+        HashSet<int> existingIds,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
     {
         var movies = await GetMoviesAsync(cancellationToken: cancellationToken);
-        var queueItems = new List<UpgradeState>();
 
         foreach (var m in movies.Where(m => m.Monitored && !existingIds.Contains(m.Id)))
         {
             if (m.InCinemas.HasValue && m.InCinemas.Value > _timeProvider.GetUtcNow())
                 continue;
 
-            queueItems.Add(
-                new UpgradeState
-                {
-                    ItemId = m.Id,
-                    Title = m.Title,
-                    ItemType = ItemType.Movie,
-                    SearchState = SearchState.Pending,
-                    IsMonitored = true,
-                    IsMissing = !m.HasFile,
-                    ReleaseDate = m.InCinemas,
-                    CreatedAt = _timeProvider.GetUtcNow(),
-                }
-            );
+            yield return new UpgradeState
+            {
+                ItemId = m.Id,
+                Title = m.Title,
+                ItemType = ItemType.Movie,
+                SearchState = SearchState.Pending,
+                IsMonitored = true,
+                IsMissing = !m.HasFile,
+                ReleaseDate = m.InCinemas,
+                CreatedAt = _timeProvider.GetUtcNow(),
+            };
         }
-        return queueItems;
     }
 
     public async Task<UpgradeActionResult> ProcessUpgradeAsync(UpgradeState state, CancellationToken cancellationToken = default)
@@ -139,15 +136,25 @@ public class RadarrClient : IQueueManager, IUpgradeManager
         if (languageId.HasValue)
             queryBuilder.Add("languageId", languageId.Value.ToString());
 
-        return await _client.GetFromJsonAsync(
-                $"/api/v3/movie{queryBuilder.ToQueryString()}",
-                RadarrClientJsonSerializerContext.Default.IListMovieResource,
-                cancellationToken
-            ) ?? [];
+        return await _hybridCache.GetOrCreateAsync(
+            $"radarr_movies_{tmdbId}_{excludeLocalCovers}_{languageId}",
+            async ct =>
+                await _client.GetFromJsonAsync($"/api/v3/movie{queryBuilder.ToQueryString()}", RadarrClientJsonSerializerContext.Default.IListMovieResource, ct)
+                ?? [],
+            options: null,
+            tags: ["radarr", "radarr_movies"],
+            cancellationToken: cancellationToken
+        );
     }
 
     public async Task<MovieResource?> GetMovieByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        await _client.GetFromJsonAsync($"/api/v3/movie/{id}", RadarrClientJsonSerializerContext.Default.MovieResource, cancellationToken);
+        await _hybridCache.GetOrCreateAsync(
+            $"radarr_movie_{id}",
+            async ct => await _client.GetFromJsonAsync($"/api/v3/movie/{id}", RadarrClientJsonSerializerContext.Default.MovieResource, ct),
+            options: null,
+            tags: ["radarr", "radarr_movies", $"radarr_movie_{id}"],
+            cancellationToken: cancellationToken
+        );
 
     public async Task<PagingResource<RadarrQueueResource>> GetQueueAsync(
         int page = 1,
@@ -173,7 +180,7 @@ public class RadarrClient : IQueueManager, IUpgradeManager
             ) ?? new();
     }
 
-    public async Task<bool> DeleteQueueItemAsync(
+    protected override async Task<bool> DeleteQueueItemAsync(
         int itemId,
         bool removeFromClient = true,
         bool blocklist = false,
@@ -191,11 +198,12 @@ public class RadarrClient : IQueueManager, IUpgradeManager
         {
             var response = await _client.DeleteAsync($"/api/v3/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
             response.EnsureSuccessStatusCode();
+            await _hybridCache.RemoveByTagAsync("radarr", cancellationToken);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting queue item {ItemId}", itemId);
+            _logger.LogErrorDeletingQueueItem(ex, itemId);
             return false;
         }
     }
@@ -212,78 +220,27 @@ public class RadarrClient : IQueueManager, IUpgradeManager
         return await response.Content.ReadFromJsonAsync(RadarrClientJsonSerializerContext.Default.CommandResource, cancellationToken);
     }
 
-    public async ValueTask<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
-        QueueRecord record,
-        CancellationToken cancellationToken = default
-    )
+    protected override Task<IEnumerable<ItemToQueue>> GetRequeueItemsAsync(int itemId, CancellationToken cancellationToken)
     {
-        var itemsToRequeue = new List<ItemToQueue>();
-        var allDeleted = true;
-
-        foreach (var itemScore in record.ItemScores)
-        {
-            if (
-                !await DeleteQueueItemAsync(
-                    itemScore.ItemId,
-                    removeFromClient: true,
-                    blocklist: true,
-                    skipRedownload: true,
-                    cancellationToken: cancellationToken
-                )
-            )
-            {
-                allDeleted = false;
-            }
-            else
-            {
-                // Add movie to re-queue
-                itemsToRequeue.Add(new(ItemType.Movie, itemScore.ItemId));
-            }
-        }
-
-        return (allDeleted, itemsToRequeue);
+        return Task.FromResult<IEnumerable<ItemToQueue>>([new(ItemType.Movie, itemId)]);
     }
 
-    public async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    protected override Task<PagingResource<RadarrQueueResource>> GetQueuePageAsync(int page, int pageSize, CancellationToken cancellationToken)
     {
-        const int PageSize = 100;
+        return GetQueueAsync(page, pageSize, cancellationToken: cancellationToken);
+    }
 
-        var page = 1;
-        PagingResource<RadarrQueueResource> items;
-        do
+    protected override async Task<IQueueResource> ProcessQueueItemForYieldAsync(RadarrQueueResource item, CancellationToken cancellationToken)
+    {
+        if (item.DownloadId != null && item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.MovieId.HasValue)
         {
-            items = await GetQueueAsync(page, PageSize, cancellationToken: cancellationToken);
-            foreach (var item in items.Records)
+            var movie = await GetMovieByIdAsync(item.MovieId.Value, cancellationToken);
+            if (movie is not null)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    yield break;
-                }
-
-                if (item.DownloadId is null)
-                {
-                    // Skip items with null DownloadId, as these cannot be tracked for cleanup
-                    continue;
-                }
-
-                if (item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.MovieId.HasValue)
-                {
-                    var movie = await GetMovieByIdAsync(item.MovieId.Value, cancellationToken);
-                    if (movie is not null)
-                    {
-                        yield return item with
-                        {
-                            Title = movie.Title,
-                        };
-                        continue;
-                    }
-                }
-
-                yield return item;
+                return item with { Title = movie.Title };
             }
-
-            page++;
-        } while (items.Records?.Count > 0);
+        }
+        return item;
     }
 
     public async ValueTask<(bool ShouldRemove, int DownloadedScore)> ShouldRemoveImmediately(IQueueResource item, CancellationToken cancellationToken = default)

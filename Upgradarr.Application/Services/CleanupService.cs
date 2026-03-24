@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Upgradarr.Application.Options;
 using Upgradarr.Data;
+using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
@@ -18,6 +19,7 @@ public class CleanupService
     private readonly AppDbContext _dbContext;
     private readonly TimeProvider _timeProvider;
     private readonly IEnumerable<IQueueManager> _queueManagers;
+    private readonly IMigrationState _migrationState;
 
     private static readonly string[] _stalledErrorMessages = ["The download is stalled with no connections", "metadata"];
 
@@ -54,7 +56,8 @@ public class CleanupService
         ILogger<CleanupService> logger,
         AppDbContext dbContext,
         TimeProvider timeProvider,
-        IEnumerable<IQueueManager> queueManagers
+        IEnumerable<IQueueManager> queueManagers,
+        IMigrationState migrationState
     )
     {
         _options = options.Value;
@@ -62,10 +65,14 @@ public class CleanupService
         _dbContext = dbContext;
         _timeProvider = timeProvider;
         _queueManagers = queueManagers;
+        _migrationState = migrationState;
     }
 
     public async Task PerformCleanupAsync(CancellationToken cancellationToken = default)
     {
+        if (!_migrationState.IsDone)
+            return;
+
         var queueItems = GetAllQueueItems(cancellationToken);
         var trackedDownloads = await _dbContext.TrackedDownloads.ToDictionaryAsync(r => r.DownloadId, cancellationToken);
         var currentQueueDownloadIds = new HashSet<string>();

@@ -18,12 +18,12 @@ public interface IUpgradeManager
     /// <summary>
     /// Builds initial queue items for tracking
     /// </summary>
-    Task<List<UpgradeState>> BuildQueueItemsAsync(CancellationToken cancellationToken = default);
+    IAsyncEnumerable<UpgradeState> BuildQueueItemsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets newly added items that aren't currently being tracked
     /// </summary>
-    Task<List<UpgradeState>> GetNewQueueItemsAsync(HashSet<int> existingIds, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<UpgradeState> GetNewQueueItemsAsync(HashSet<int> existingIds, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Process the next action for a given item

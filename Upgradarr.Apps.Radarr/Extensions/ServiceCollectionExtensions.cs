@@ -13,6 +13,8 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddRadarr()
         {
+            services.AddHybridCache();
+
             services
                 .AddOptions<RadarrOptions>()
                 .Configure(

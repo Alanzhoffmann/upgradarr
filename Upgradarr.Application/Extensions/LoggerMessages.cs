@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Upgradarr.Domain.Enums;
 
 namespace Upgradarr.Application.Extensions;
@@ -130,4 +130,7 @@ public static partial class LoggerMessages
 
     [LoggerMessage(EventId = 4030, Level = LogLevel.Error, Message = "Error detecting and adding new items to queue")]
     public static partial void LogErrorAddingNewItemsToQueue(this ILogger logger, Exception ex);
+
+    [LoggerMessage(EventId = 4031, Level = LogLevel.Error, Message = "Failed to process upgrade for item {ItemId}")]
+    public static partial void LogErrorFailedToProcessUpgrade(this ILogger logger, Exception ex, int itemId);
 }

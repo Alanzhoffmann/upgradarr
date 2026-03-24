@@ -1,11 +1,10 @@
-﻿using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 using Upgradarr.Api.BackgroundServices;
 using Upgradarr.Api.Endpoints;
+using Upgradarr.Api.Middleware;
 using Upgradarr.Application.Extensions;
 using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Sonarr.Extensions;
-using Upgradarr.Data;
 using Upgradarr.Domain.Entities;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -28,6 +27,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddHostedService<UpgradeBackgroundService>();
 builder.Services.AddHostedService<CleanupBackgroundService>();
+builder.Services.AddHostedService<MigrationBackgroundService>();
 
 builder.Services.AddApplicationServices();
 
@@ -36,6 +36,8 @@ builder.Services.AddSonarr();
 
 var app = builder.Build();
 
+app.UseMiddleware<MigrationMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -43,14 +45,6 @@ if (app.Environment.IsDevelopment())
 
 app.MapCleanupEndpoints();
 app.MapUpgradeEndpoints();
-
-if (!Directory.Exists("/config"))
-{
-    Directory.CreateDirectory("/config");
-}
-
-var dbContext = app.Services.GetRequiredService<AppDbContext>();
-await dbContext.Database.MigrateAsync();
 
 app.Run();
 
