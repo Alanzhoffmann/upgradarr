@@ -66,3 +66,11 @@ jobs:
           -p:ContainerRegistry=ghcr.io \
           -p:ContainerRepository=${{ steps.image.outputs.name }} \
           -p:ContainerImageTags="${{ steps.tags.outputs.tags }}"
+
+    - name: Create GitHub Release
+      if: steps.nbgv.outputs.public_release == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.nbgv.outputs.version }}
+        name: Release v${{ steps.nbgv.outputs.version }}
+        generate_release_notes: true
