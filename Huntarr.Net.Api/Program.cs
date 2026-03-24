@@ -1,14 +1,13 @@
 ﻿using System.Text.Json.Serialization;
-using Huntarr.Net.Api;
 using Huntarr.Net.Api.BackgroundServices;
-using Huntarr.Net.Api.Interceptors;
-using Huntarr.Net.Api.Models;
-using Huntarr.Net.Api.Options;
-using Huntarr.Net.Api.Services;
 using Microsoft.EntityFrameworkCore;
-using Upgradarr.Apps.Models;
+using Upgradarr.Application.Extensions;
+using Upgradarr.Application.Services;
 using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Sonarr.Extensions;
+using Upgradarr.Data;
+using Upgradarr.Domain.Entities;
+using Upgradarr.Domain.Enums;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -28,27 +27,13 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-builder.Services.AddSingleton(TimeProvider.System);
-
-builder.Services.Configure<CleanupOptions>(builder.Configuration.GetSection(CleanupOptions.SectionName));
-
 builder.Services.AddHostedService<UpgradeBackgroundService>();
 builder.Services.AddHostedService<CleanupBackgroundService>();
 
-builder.Services.AddScoped<CleanupService>();
-builder.Services.AddScoped<UpgradeService>();
-builder.Services.AddSingleton<DeleteQueueItemInterceptor>();
+builder.Services.AddApplicationServices();
 
 builder.Services.AddRadarr();
 builder.Services.AddSonarr();
-
-builder.Services.AddDbContext<AppDbContext>(
-    (serviceProvider, options) =>
-    {
-        options.UseSqlite("Data Source=/config/app.db;Cache=Shared");
-        options.AddInterceptors(serviceProvider.GetRequiredService<DeleteQueueItemInterceptor>());
-    }
-);
 
 var app = builder.Build();
 

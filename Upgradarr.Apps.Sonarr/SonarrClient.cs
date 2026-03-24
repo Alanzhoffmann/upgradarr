@@ -3,10 +3,12 @@ using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
-using Upgradarr.Apps.Enums;
-using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Sonarr.Models;
+using Upgradarr.Domain.Entities;
+using Upgradarr.Domain.Enums;
+using Upgradarr.Domain.Interfaces;
+using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Apps.Sonarr;
 

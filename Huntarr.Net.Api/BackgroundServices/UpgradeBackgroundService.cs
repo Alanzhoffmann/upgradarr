@@ -1,5 +1,5 @@
-﻿using Huntarr.Net.Api.Extensions;
-using Huntarr.Net.Api.Services;
+﻿using Upgradarr.Application.Extensions;
+using Upgradarr.Application.Services;
 
 namespace Huntarr.Net.Api.BackgroundServices;
 

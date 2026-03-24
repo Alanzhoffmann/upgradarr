@@ -3,10 +3,12 @@ using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
-using Upgradarr.Apps.Enums;
-using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr.Models;
+using Upgradarr.Domain.Entities;
+using Upgradarr.Domain.Enums;
+using Upgradarr.Domain.Interfaces;
+using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Apps.Radarr;
 
@@ -144,7 +146,7 @@ public class RadarrClient : IQueueManager
     public async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         const int PageSize = 100;
-        
+
         var page = 1;
         PagingResource<RadarrQueueResource> items;
         do

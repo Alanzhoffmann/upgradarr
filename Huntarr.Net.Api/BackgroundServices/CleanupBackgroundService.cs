@@ -1,6 +1,6 @@
-﻿using Huntarr.Net.Api.Options;
-using Huntarr.Net.Api.Services;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
+using Upgradarr.Application.Options;
+using Upgradarr.Application.Services;
 
 namespace Huntarr.Net.Api.BackgroundServices;
 
