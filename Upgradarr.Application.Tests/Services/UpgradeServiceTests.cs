@@ -20,6 +20,14 @@ public class UpgradeServiceTests
         return new AppDbContext(options);
     }
 
+    private static async IAsyncEnumerable<UpgradeState> AsAsyncEnumerable(params IEnumerable<UpgradeState> states)
+    {
+        foreach (var state in states)
+        {
+            yield return state;
+        }
+    }
+
     [Test]
     public async Task InitializeUpgradeStatesAsync_CallsAllManagersAndSavesToDb()
     {
@@ -31,19 +39,33 @@ public class UpgradeServiceTests
         var manager1 = Mock.Of<IUpgradeManager>();
         manager1
             .BuildQueueItemsAsync(Any<CancellationToken>())
-            .Returns([
-                new UpgradeState
-                {
-                    ItemType = ItemType.Series,
-                    ItemId = 1,
-                    SearchState = SearchState.Pending,
-                    IsMonitored = true,
-                },
-            ]);
+            .Returns(
+                AsAsyncEnumerable(
+                    new UpgradeState
+                    {
+                        ItemType = ItemType.Series,
+                        ItemId = 1,
+                        SearchState = SearchState.Pending,
+                        IsMonitored = true,
+                    }
+                )
+            );
 
         var manager2 = Mock.Of<IUpgradeManager>();
         manager2
             .BuildQueueItemsAsync(Any<CancellationToken>())
+            .Returns(
+                AsAsyncEnumerable(
+                    new UpgradeState
+                    {
+                        ItemType = ItemType.Movie,
+                        ItemId = 2,
+                        SearchState = SearchState.Pending,
+                        IsMonitored = true,
+                    }
+                )
+            );
+
         var migrationState = Mock.Of<IMigrationState>();
         migrationState.IsDone.Returns(true);
 

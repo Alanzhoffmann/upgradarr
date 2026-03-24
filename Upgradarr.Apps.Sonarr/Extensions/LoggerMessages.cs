@@ -51,4 +51,7 @@ public static partial class LoggerMessages
         Message = "Episode {SeriesTitle} S{SeasonNumber:D2}E{EpisodeNumber:D2} (ID: {EpisodeId}) not found or unmonitored, removing from queue"
     )]
     public static partial void LogEpisodeNotFoundOrUnmonitored(this ILogger logger, string seriesTitle, int seasonNumber, int episodeNumber, int episodeId);
+
+    [LoggerMessage(EventId = 4026, Level = LogLevel.Error, Message = "Error deleting queue item {ItemId}")]
+    public static partial void LogErrorDeletingQueueItem(this ILogger logger, Exception ex, int itemId);
 }

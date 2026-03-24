@@ -13,16 +13,15 @@ using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Apps.Sonarr;
 
-public class SonarrClient : IQueueManager, IUpgradeManager
+public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager, IUpgradeManager
 {
     private readonly HttpClient _client;
-    private readonly ILogger<SonarrClient> _logger;
     private readonly TimeProvider _timeProvider;
 
-    public SonarrClient(HttpClient client, ILogger<SonarrClient> logger, TimeProvider timeProvider)
+    public SonarrClient(HttpClient client, ILogger<SonarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
+        : base(logger)
     {
         _client = client;
-        _logger = logger;
         _timeProvider = timeProvider;
     }
 
@@ -30,38 +29,42 @@ public class SonarrClient : IQueueManager, IUpgradeManager
 
     public bool CanHandle(ItemType itemType) => itemType is ItemType.Series or ItemType.Season or ItemType.Episode;
 
-    public async Task<List<UpgradeState>> BuildQueueItemsAsync(CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<UpgradeState> BuildQueueItemsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var series = await GetSeriesAsync(cancellationToken);
-        var queueItems = new List<UpgradeState>();
 
-        // Create entries for all monitored series
         foreach (var s in series.Where(s => s.Monitored))
         {
-            await ProcessSeriesIntoQueueAsync(s, queueItems, cancellationToken);
+            var items = await BuildSeriesQueueItemsAsync(s, cancellationToken);
+            foreach (var item in items)
+            {
+                yield return item;
+            }
         }
-
-        return queueItems;
     }
 
-    public async Task<List<UpgradeState>> GetNewQueueItemsAsync(HashSet<int> existingIds, CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<UpgradeState> GetNewQueueItemsAsync(
+        HashSet<int> existingIds,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
     {
         var series = await GetSeriesAsync(cancellationToken);
-        var queueItems = new List<UpgradeState>();
 
-        // Create entries for all monitored series that don't exist yet
         foreach (var s in series.Where(s => s.Monitored && !existingIds.Contains(s.Id)))
         {
-            await ProcessSeriesIntoQueueAsync(s, queueItems, cancellationToken);
+            var items = await BuildSeriesQueueItemsAsync(s, cancellationToken);
+            foreach (var item in items)
+            {
+                yield return item;
+            }
         }
-
-        return queueItems;
     }
 
-    private async Task ProcessSeriesIntoQueueAsync(SeriesResource s, List<UpgradeState> queueItems, CancellationToken cancellationToken)
+    private async Task<List<UpgradeState>> BuildSeriesQueueItemsAsync(SeriesResource s, CancellationToken cancellationToken)
     {
+        var queueItems = new List<UpgradeState>();
         if (s.FirstAired.HasValue && s.FirstAired.Value > _timeProvider.GetUtcNow())
-            return;
+            return queueItems;
 
         var seriesItem = new UpgradeState
         {
@@ -126,6 +129,8 @@ public class SonarrClient : IQueueManager, IUpgradeManager
                 }
             }
         }
+
+        return queueItems;
     }
 
     public async Task<UpgradeActionResult> ProcessUpgradeAsync(UpgradeState state, CancellationToken cancellationToken = default)
@@ -386,7 +391,7 @@ public class SonarrClient : IQueueManager, IUpgradeManager
             ) ?? new();
     }
 
-    public async Task<bool> DeleteQueueItemAsync(
+    protected override async Task<bool> DeleteQueueItemAsync(
         int itemId,
         bool removeFromClient = true,
         bool blocklist = false,
@@ -407,7 +412,7 @@ public class SonarrClient : IQueueManager, IUpgradeManager
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting queue item {ItemId}", itemId);
+            _logger.LogErrorDeletingQueueItem(ex, itemId);
             return false;
         }
         return true;
@@ -449,102 +454,49 @@ public class SonarrClient : IQueueManager, IUpgradeManager
         return await response.Content.ReadFromJsonAsync(SonarrClientJsonSerializerContext.Default.CommandResource, cancellationToken);
     }
 
-    public async ValueTask<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
-        QueueRecord record,
-        CancellationToken cancellationToken = default
-    )
+    protected override async Task<IEnumerable<ItemToQueue>> GetRequeueItemsAsync(int itemId, CancellationToken cancellationToken)
     {
-        bool allDeleted = true;
         var itemsToRequeue = new List<ItemToQueue>();
-
-        foreach (var itemScore in record.ItemScores)
+        try
         {
-            if (
-                !await DeleteQueueItemAsync(
-                    itemScore.ItemId,
-                    removeFromClient: true,
-                    blocklist: true,
-                    skipRedownload: true,
-                    cancellationToken: cancellationToken
-                )
-            )
-            {
-                allDeleted = false;
-            }
-            else
-            {
-                // Get episode details to determine show/season/episode to re-queue
-                try
-                {
-                    var episodes = await GetEpisodesAsync(episodeIds: [itemScore.ItemId], cancellationToken: cancellationToken);
-                    var episode = episodes.FirstOrDefault();
+            var episodes = await GetEpisodesAsync(episodeIds: [itemId], cancellationToken: cancellationToken);
+            var episode = episodes.FirstOrDefault();
 
-                    if (episode is not null)
-                    {
-                        // Add show, season, and episode to re-queue
-                        var seriesId = episode.SeriesId;
-
-                        // Get series to add it back
-                        var series = await GetSeriesByIdAsync(seriesId, cancellationToken: cancellationToken);
-                        if (series is not null && series.Monitored)
-                        {
-                            itemsToRequeue.Add(new(ItemType.Series, seriesId));
-                            itemsToRequeue.Add(new(ItemType.Season, episode.SeasonNumber, seriesId, episode.SeasonNumber));
-                            itemsToRequeue.Add(new(ItemType.Episode, episode.Id, seriesId, episode.SeasonNumber, episode.EpisodeNumber));
-                        }
-                    }
-                }
-                catch
+            if (episode is not null)
+            {
+                var seriesId = episode.SeriesId;
+                var series = await GetSeriesByIdAsync(seriesId, cancellationToken: cancellationToken);
+                if (series is not null && series.Monitored)
                 {
-                    // If we can't get episode details, just add the episode ID back
-                    itemsToRequeue.Add(new(ItemType.Episode, itemScore.ItemId));
+                    itemsToRequeue.Add(new(ItemType.Series, seriesId));
+                    itemsToRequeue.Add(new(ItemType.Season, episode.SeasonNumber, seriesId, episode.SeasonNumber));
+                    itemsToRequeue.Add(new(ItemType.Episode, episode.Id, seriesId, episode.SeasonNumber, episode.EpisodeNumber));
                 }
             }
         }
-
-        return (allDeleted, itemsToRequeue);
+        catch
+        {
+            itemsToRequeue.Add(new(ItemType.Episode, itemId));
+        }
+        return itemsToRequeue;
     }
 
-    public async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    protected override Task<PagingResource<SonarrQueueResource>> GetQueuePageAsync(int page, int pageSize, CancellationToken cancellationToken)
     {
-        const int PageSize = 100;
+        return GetQueueAsync(page, pageSize, includeSeries: true, includeEpisode: true, cancellationToken: cancellationToken);
+    }
 
-        var page = 1;
-        PagingResource<SonarrQueueResource> items;
-        do
+    protected override async Task<IQueueResource> ProcessQueueItemForYieldAsync(SonarrQueueResource item, CancellationToken cancellationToken)
+    {
+        if (item.DownloadId != null && item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.EpisodeId.HasValue)
         {
-            items = await GetQueueAsync(page, PageSize, includeSeries: true, includeEpisode: true, cancellationToken: cancellationToken);
-            foreach (var item in items.Records)
+            var episode = await GetEpisodeByIdAsync(item.EpisodeId.Value, cancellationToken);
+            if (episode is not null)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    yield break;
-                }
-
-                if (item.DownloadId is null)
-                {
-                    // Skip items with null DownloadId, as these cannot be tracked for cleanup
-                    continue;
-                }
-
-                if (item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.EpisodeId.HasValue)
-                {
-                    var episode = await GetEpisodeByIdAsync(item.EpisodeId.Value, cancellationToken);
-                    if (episode is not null)
-                    {
-                        yield return item with
-                        {
-                            Title = $"{episode.Series?.Title} {episode.SeasonNumber}x{episode.EpisodeNumber:00} - {episode.Title}",
-                        };
-                        continue;
-                    }
-                }
-
-                yield return item;
+                return item with { Title = $"{episode.Series?.Title} {episode.SeasonNumber}x{episode.EpisodeNumber:00} - {episode.Title}" };
             }
-
-            page++;
-        } while (items.Records?.Count > 0);
+        }
+        return item;
     }
 
     public async ValueTask<(bool ShouldRemove, int DownloadedScore)> ShouldRemoveImmediately(IQueueResource item, CancellationToken cancellationToken = default)

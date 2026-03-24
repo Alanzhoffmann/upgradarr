@@ -18,4 +18,7 @@ public static partial class LoggerMessages
 
     [LoggerMessage(EventId = 1027, Level = LogLevel.Information, Message = "Movie {MovieTitle} (ID: {MovieId}) is no longer monitored, removing from queue")]
     public static partial void LogMovieNoLongerMonitored(this ILogger logger, string movieTitle, int movieId);
+
+    [LoggerMessage(EventId = 4019, Level = LogLevel.Error, Message = "Error deleting queue item {ItemId}")]
+    public static partial void LogErrorDeletingQueueItem(this ILogger logger, Exception ex, int itemId);
 }

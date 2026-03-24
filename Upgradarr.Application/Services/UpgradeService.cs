@@ -104,22 +104,30 @@ internal class UpgradeService : IUpgradeService
             return false;
         }
 
-        var result = await manager.ProcessUpgradeAsync(state, cancellationToken);
-        switch (result)
+        try
         {
-            case UpgradeActionResult.Searched:
-                state.SearchState = SearchState.Searched;
-                state.LastUpdatedAt = _timeProvider.GetUtcNow();
-                await _dbContext.SaveChangesAsync(cancellationToken);
-                return true;
+            var result = await manager.ProcessUpgradeAsync(state, cancellationToken);
+            switch (result)
+            {
+                case UpgradeActionResult.Searched:
+                    state.SearchState = SearchState.Searched;
+                    state.LastUpdatedAt = _timeProvider.GetUtcNow();
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                    return true;
 
-            case UpgradeActionResult.Removed:
-                await RemoveItemAndChildrenAsync(state, cancellationToken);
-                return false;
+                case UpgradeActionResult.Removed:
+                    await RemoveItemAndChildrenAsync(state, cancellationToken);
+                    return false;
 
-            case UpgradeActionResult.Skipped:
-            default:
-                return false;
+                case UpgradeActionResult.Skipped:
+                default:
+                    return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorFailedToProcessUpgrade(ex, state.ItemId);
+            return false;
         }
     }
 
@@ -175,7 +183,10 @@ internal class UpgradeService : IUpgradeService
             var queueItems = new List<UpgradeState>();
             foreach (var manager in _upgradeManagers)
             {
-                queueItems.AddRange(await manager.BuildQueueItemsAsync(cancellationToken));
+                await foreach (var item in manager.BuildQueueItemsAsync(cancellationToken))
+                {
+                    queueItems.Add(item);
+                }
             }
 
             var shuffledQueue = ShuffleAndAssignPositions(queueItems);
@@ -284,7 +295,10 @@ internal class UpgradeService : IUpgradeService
             var queueItems = new List<UpgradeState>();
             foreach (var manager in _upgradeManagers)
             {
-                queueItems.AddRange(await manager.BuildQueueItemsAsync(cancellationToken));
+                await foreach (var item in manager.BuildQueueItemsAsync(cancellationToken))
+                {
+                    queueItems.Add(item);
+                }
             }
 
             var shuffledQueue = ShuffleAndAssignPositions(queueItems);
@@ -308,7 +322,10 @@ internal class UpgradeService : IUpgradeService
             var allTrackableItems = new List<UpgradeState>();
             foreach (var manager in _upgradeManagers)
             {
-                allTrackableItems.AddRange(await manager.BuildQueueItemsAsync(cancellationToken));
+                await foreach (var item in manager.BuildQueueItemsAsync(cancellationToken))
+                {
+                    allTrackableItems.Add(item);
+                }
             }
 
             var trackableLookup = allTrackableItems.ToDictionary(t => (t.ItemType, t.ItemId, t.ParentSeriesId, t.SeasonNumber, t.EpisodeNumber));
