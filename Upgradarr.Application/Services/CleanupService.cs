@@ -1,6 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Upgradarr.Application.Options;
@@ -19,7 +18,6 @@ public class CleanupService
     private readonly AppDbContext _dbContext;
     private readonly TimeProvider _timeProvider;
     private readonly IEnumerable<IQueueManager> _queueManagers;
-    private readonly IServiceProvider _serviceProvider;
 
     private static readonly string[] _stalledErrorMessages = ["The download is stalled with no connections", "metadata"];
 
@@ -56,8 +54,7 @@ public class CleanupService
         ILogger<CleanupService> logger,
         AppDbContext dbContext,
         TimeProvider timeProvider,
-        IEnumerable<IQueueManager> queueManagers,
-        IServiceProvider serviceProvider
+        IEnumerable<IQueueManager> queueManagers
     )
     {
         _options = options.Value;
@@ -65,7 +62,6 @@ public class CleanupService
         _dbContext = dbContext;
         _timeProvider = timeProvider;
         _queueManagers = queueManagers;
-        _serviceProvider = serviceProvider;
     }
 
     public async Task PerformCleanupAsync(CancellationToken cancellationToken = default)
@@ -216,7 +212,7 @@ public class CleanupService
             return true;
         }
 
-        var queueManager = _serviceProvider.GetKeyedService<IQueueManager>(item.Source);
+        var queueManager = _queueManagers.FirstOrDefault(m => m.SourceName == item.Source);
         if (queueManager is null)
         {
             _logger.LogErrorRemovingItemFromQueue(item.Source);

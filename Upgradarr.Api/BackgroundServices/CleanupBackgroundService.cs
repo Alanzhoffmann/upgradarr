@@ -2,7 +2,7 @@
 using Upgradarr.Application.Options;
 using Upgradarr.Application.Services;
 
-namespace Huntarr.Net.Api.BackgroundServices;
+namespace Upgradarr.Api.BackgroundServices;
 
 public class CleanupBackgroundService : BackgroundService
 {

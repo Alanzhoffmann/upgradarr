@@ -1,9 +1,10 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Apps.Models;
+using Upgradarr.Apps.Sonarr.Extensions;
 using Upgradarr.Apps.Sonarr.Models;
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
@@ -12,15 +13,301 @@ using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Apps.Sonarr;
 
-public class SonarrClient : IQueueManager
+public class SonarrClient : IQueueManager, IUpgradeManager
 {
     private readonly HttpClient _client;
     private readonly ILogger<SonarrClient> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public SonarrClient(HttpClient client, ILogger<SonarrClient> logger)
+    public SonarrClient(HttpClient client, ILogger<SonarrClient> logger, TimeProvider timeProvider)
     {
         _client = client;
         _logger = logger;
+        _timeProvider = timeProvider;
+    }
+
+    public RecordSource SourceName => RecordSource.Sonarr;
+
+    public bool CanHandle(ItemType itemType) => itemType is ItemType.Series or ItemType.Season or ItemType.Episode;
+
+    public async Task<List<UpgradeState>> BuildQueueItemsAsync(CancellationToken cancellationToken = default)
+    {
+        var series = await GetSeriesAsync(cancellationToken);
+        var queueItems = new List<UpgradeState>();
+
+        // Create entries for all monitored series
+        foreach (var s in series.Where(s => s.Monitored))
+        {
+            await ProcessSeriesIntoQueueAsync(s, queueItems, cancellationToken);
+        }
+
+        return queueItems;
+    }
+
+    public async Task<List<UpgradeState>> GetNewQueueItemsAsync(HashSet<int> existingIds, CancellationToken cancellationToken = default)
+    {
+        var series = await GetSeriesAsync(cancellationToken);
+        var queueItems = new List<UpgradeState>();
+
+        // Create entries for all monitored series that don't exist yet
+        foreach (var s in series.Where(s => s.Monitored && !existingIds.Contains(s.Id)))
+        {
+            await ProcessSeriesIntoQueueAsync(s, queueItems, cancellationToken);
+        }
+
+        return queueItems;
+    }
+
+    private async Task ProcessSeriesIntoQueueAsync(SeriesResource s, List<UpgradeState> queueItems, CancellationToken cancellationToken)
+    {
+        if (s.FirstAired.HasValue && s.FirstAired.Value > _timeProvider.GetUtcNow())
+            return;
+
+        var seriesItem = new UpgradeState
+        {
+            ItemId = s.Id,
+            Title = s.Title,
+            ItemType = ItemType.Series,
+            SearchState = SearchState.Pending,
+            IsMonitored = true,
+            ReleaseDate = s.FirstAired,
+            CreatedAt = _timeProvider.GetUtcNow(),
+        };
+        queueItems.Add(seriesItem);
+
+        var episodes = await GetEpisodesAsync(seriesId: s.Id, cancellationToken: cancellationToken);
+
+        var seasonGroups = episodes.Where(e => e.Monitored).GroupBy(e => e.SeasonNumber).OrderBy(g => g.Key).ToList();
+
+        foreach (var seasonGroup in seasonGroups)
+        {
+            int seasonNumber = seasonGroup.Key;
+            var seasonItem = new UpgradeState
+            {
+                ItemId = seasonNumber,
+                ParentSeriesId = s.Id,
+                SeasonNumber = seasonNumber,
+                Title = $"{s.Title} - Season {seasonNumber}",
+                ItemType = ItemType.Season,
+                SearchState = SearchState.Pending,
+                IsMonitored = true,
+                ReleaseDate = seasonGroup.Min(e => e.AirDateUtc),
+                CreatedAt = _timeProvider.GetUtcNow(),
+            };
+            queueItems.Add(seasonItem);
+
+            foreach (var episode in seasonGroup.OrderBy(e => e.EpisodeNumber))
+            {
+                if (episode.AirDateUtc.HasValue && episode.AirDateUtc.Value > _timeProvider.GetUtcNow())
+                    continue;
+
+                bool isMissing = !episode.HasFile;
+
+                var episodeItem = new UpgradeState
+                {
+                    ItemId = episode.Id,
+                    ParentSeriesId = s.Id,
+                    SeasonNumber = seasonNumber,
+                    EpisodeNumber = episode.EpisodeNumber,
+                    Title = $"{s.Title} - S{seasonNumber:D2}E{episode.EpisodeNumber:D2}",
+                    ItemType = ItemType.Episode,
+                    SearchState = SearchState.Pending,
+                    IsMonitored = true,
+                    IsMissing = isMissing,
+                    ReleaseDate = episode.AirDateUtc,
+                    CreatedAt = _timeProvider.GetUtcNow(),
+                };
+                queueItems.Add(episodeItem);
+
+                if (isMissing)
+                {
+                    seasonItem.IsMissing = true;
+                    seriesItem.IsMissing = true;
+                }
+            }
+        }
+    }
+
+    public async Task<UpgradeActionResult> ProcessUpgradeAsync(UpgradeState state, CancellationToken cancellationToken = default)
+    {
+        return state.ItemType switch
+        {
+            ItemType.Series => await ProcessSeriesUpgradeAsync(state, cancellationToken),
+            ItemType.Season => await ProcessSeasonUpgradeAsync(state, cancellationToken),
+            ItemType.Episode => await ProcessEpisodeUpgradeAsync(state, cancellationToken),
+            _ => UpgradeActionResult.Skipped,
+        };
+    }
+
+    private async Task<UpgradeActionResult> ProcessSeriesUpgradeAsync(UpgradeState state, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var series = await GetSeriesByIdAsync(state.ItemId, cancellationToken: cancellationToken);
+            if (series is null)
+            {
+                _logger.LogSeriesNotFound(state.ItemId);
+                return UpgradeActionResult.Searched;
+            }
+
+            if (!series.Monitored)
+            {
+                _logger.LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ItemId);
+                return UpgradeActionResult.Removed;
+            }
+
+            _logger.LogSearchingForSeries(series.Title ?? "Unknown");
+            await SearchSeriesAsync(state.ItemId, cancellationToken);
+            return UpgradeActionResult.Searched;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorProcessingSeriesUpgrade(ex, state.ItemId);
+            return UpgradeActionResult.Skipped;
+        }
+    }
+
+    private async Task<UpgradeActionResult> ProcessSeasonUpgradeAsync(UpgradeState state, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue)
+                return UpgradeActionResult.Skipped;
+
+            var series = await GetSeriesByIdAsync(state.ParentSeriesId.Value, cancellationToken: cancellationToken);
+            if (series is null)
+                return UpgradeActionResult.Skipped;
+
+            if (!series.Monitored)
+            {
+                _logger.LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ParentSeriesId.Value);
+                return UpgradeActionResult.Removed;
+            }
+
+            if (await HasSeasonOngoingDownloadAsync(state, cancellationToken))
+            {
+                return UpgradeActionResult.Skipped;
+            }
+
+            _logger.LogSearchingForSeason(series.Title ?? "Unknown", state.SeasonNumber.Value);
+            await SearchSeasonAsync(state.ParentSeriesId.Value, state.SeasonNumber.Value, cancellationToken);
+            return UpgradeActionResult.Searched;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorProcessingSeasonUpgrade(ex, state.ParentSeriesId ?? 0, state.SeasonNumber ?? 0);
+            return UpgradeActionResult.Skipped;
+        }
+    }
+
+    private async Task<UpgradeActionResult> ProcessEpisodeUpgradeAsync(UpgradeState state, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue || !state.EpisodeNumber.HasValue)
+                return UpgradeActionResult.Skipped;
+
+            var series = await GetSeriesByIdAsync(state.ParentSeriesId.Value, cancellationToken: cancellationToken);
+            if (series is null)
+                return UpgradeActionResult.Skipped;
+
+            if (!series.Monitored)
+            {
+                _logger.LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ParentSeriesId.Value);
+                return UpgradeActionResult.Removed;
+            }
+
+            var episodes = await GetEpisodesAsync(
+                seriesId: state.ParentSeriesId.Value,
+                seasonNumber: state.SeasonNumber.Value,
+                cancellationToken: cancellationToken
+            );
+            var episode = episodes.FirstOrDefault(e => e.SeasonNumber == state.SeasonNumber && e.EpisodeNumber == state.EpisodeNumber);
+
+            if (episode is null || !episode.Monitored)
+            {
+                _logger.LogEpisodeNotFoundOrUnmonitored(series.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
+                return UpgradeActionResult.Removed;
+            }
+
+            if (await HasEpisodeOngoingDownloadAsync(state, cancellationToken))
+            {
+                return UpgradeActionResult.Skipped;
+            }
+
+            _logger.LogSearchingForEpisode(
+                series.Title ?? "Unknown",
+                state.SeasonNumber.Value.ToString().PadLeft(2, '0'),
+                state.EpisodeNumber.Value.ToString().PadLeft(2, '0')
+            );
+            await SearchEpisodesAsync([episode.Id], cancellationToken);
+            return UpgradeActionResult.Searched;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorProcessingEpisodeUpgrade(ex, state.ItemId);
+            return UpgradeActionResult.Skipped;
+        }
+    }
+
+    public async Task<bool> HasOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
+    {
+        return state.ItemType switch
+        {
+            ItemType.Series => await HasSeriesOngoingDownloadAsync(state, cancellationToken),
+            ItemType.Season => await HasSeasonOngoingDownloadAsync(state, cancellationToken),
+            ItemType.Episode => await HasEpisodeOngoingDownloadAsync(state, cancellationToken),
+            _ => false,
+        };
+    }
+
+    private async Task<bool> HasSeriesOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken)
+    {
+        var queue = GetAllQueueItems(cancellationToken);
+        if (await queue.AnyAsync(q => q is SonarrQueueResource sonarrResource && sonarrResource.SeriesId == state.ItemId, cancellationToken: cancellationToken))
+        {
+            _logger.LogSeriesHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<bool> HasSeasonOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken)
+    {
+        if (!state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue)
+            return false;
+
+        var queue = GetAllQueueItems(cancellationToken);
+        if (
+            await queue.AnyAsync(
+                q =>
+                    q is SonarrQueueResource sonarrResource
+                    && sonarrResource.SeriesId == state.ParentSeriesId.Value
+                    && sonarrResource.Episode?.SeasonNumber == state.SeasonNumber.Value,
+                cancellationToken: cancellationToken
+            )
+        )
+        {
+            _logger.LogSeasonHasOngoingDownloads(state.SeasonNumber.Value, state.Title ?? "Unknown", state.ParentSeriesId.Value);
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<bool> HasEpisodeOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken)
+    {
+        if (!state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue || !state.EpisodeNumber.HasValue)
+            return false;
+
+        var queue = GetAllQueueItems(cancellationToken);
+        if (
+            await queue.AnyAsync(q => q is SonarrQueueResource sonarrResource && sonarrResource.EpisodeId == state.ItemId, cancellationToken: cancellationToken)
+        )
+        {
+            _logger.LogEpisodeIsDownloading(state.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
+            return true;
+        }
+        return false;
     }
 
     public async Task<IList<SeriesResource>> GetSeriesAsync(CancellationToken cancellationToken = default) =>

@@ -1,9 +1,10 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Apps.Models;
+using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Radarr.Models;
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
@@ -12,15 +13,115 @@ using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Apps.Radarr;
 
-public class RadarrClient : IQueueManager
+public class RadarrClient : IQueueManager, IUpgradeManager
 {
     private readonly HttpClient _client;
     private readonly ILogger<RadarrClient> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public RadarrClient(HttpClient client, ILogger<RadarrClient> logger)
+    public RadarrClient(HttpClient client, ILogger<RadarrClient> logger, TimeProvider timeProvider)
     {
         _client = client;
         _logger = logger;
+        _timeProvider = timeProvider;
+    }
+
+    public RecordSource SourceName => RecordSource.Radarr;
+
+    public bool CanHandle(ItemType itemType) => itemType == ItemType.Movie;
+
+    public async Task<List<UpgradeState>> BuildQueueItemsAsync(CancellationToken cancellationToken = default)
+    {
+        var movies = await GetMoviesAsync(cancellationToken: cancellationToken);
+        var queueItems = new List<UpgradeState>();
+
+        foreach (var m in movies.Where(m => m.Monitored))
+        {
+            if (m.InCinemas.HasValue && m.InCinemas.Value > _timeProvider.GetUtcNow())
+                continue;
+
+            queueItems.Add(
+                new UpgradeState
+                {
+                    ItemId = m.Id,
+                    Title = m.Title,
+                    ItemType = ItemType.Movie,
+                    SearchState = SearchState.Pending,
+                    IsMonitored = true,
+                    IsMissing = !m.HasFile,
+                    ReleaseDate = m.InCinemas,
+                    CreatedAt = _timeProvider.GetUtcNow(),
+                }
+            );
+        }
+        return queueItems;
+    }
+
+    public async Task<List<UpgradeState>> GetNewQueueItemsAsync(HashSet<int> existingIds, CancellationToken cancellationToken = default)
+    {
+        var movies = await GetMoviesAsync(cancellationToken: cancellationToken);
+        var queueItems = new List<UpgradeState>();
+
+        foreach (var m in movies.Where(m => m.Monitored && !existingIds.Contains(m.Id)))
+        {
+            if (m.InCinemas.HasValue && m.InCinemas.Value > _timeProvider.GetUtcNow())
+                continue;
+
+            queueItems.Add(
+                new UpgradeState
+                {
+                    ItemId = m.Id,
+                    Title = m.Title,
+                    ItemType = ItemType.Movie,
+                    SearchState = SearchState.Pending,
+                    IsMonitored = true,
+                    IsMissing = !m.HasFile,
+                    ReleaseDate = m.InCinemas,
+                    CreatedAt = _timeProvider.GetUtcNow(),
+                }
+            );
+        }
+        return queueItems;
+    }
+
+    public async Task<UpgradeActionResult> ProcessUpgradeAsync(UpgradeState state, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var movie = await GetMovieByIdAsync(state.ItemId, cancellationToken);
+            if (movie is null)
+            {
+                _logger.LogMovieNotFound(state.ItemId);
+                return UpgradeActionResult.Searched; // Treats as searched/completed so it doesn't loop forever
+            }
+
+            if (!movie.Monitored)
+            {
+                _logger.LogMovieNoLongerMonitored(movie.Title ?? "Unknown", state.ItemId);
+                return UpgradeActionResult.Removed;
+            }
+
+            _logger.LogSearchingForMovie(movie.Title ?? "Unknown");
+            await SearchMoviesAsync([state.ItemId], cancellationToken);
+            return UpgradeActionResult.Searched;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorProcessingMovieUpgrade(ex, state.ItemId);
+            return UpgradeActionResult.Skipped;
+        }
+    }
+
+    public async Task<bool> HasOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
+    {
+        var queue = GetAllQueueItems(cancellationToken);
+        if (await queue.AnyAsync(q => q is RadarrQueueResource radarrResource && radarrResource.MovieId == state.ItemId, cancellationToken: cancellationToken))
+        {
+            _logger.LogMovieIsDownloading(state.Title ?? "Unknown", state.ItemId);
+            return true;
+        }
+
+        return false;
     }
 
     public async Task<IList<MovieResource>> GetMoviesAsync(

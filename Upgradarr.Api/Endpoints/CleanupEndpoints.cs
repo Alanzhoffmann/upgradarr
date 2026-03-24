@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Upgradarr.Application.Services;
 using Upgradarr.Data;
 
-namespace Huntarr.Net.Api.Endpoints;
+namespace Upgradarr.Api.Endpoints;
 
 public static class CleanupEndpoints
 {

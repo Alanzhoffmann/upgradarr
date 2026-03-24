@@ -39,6 +39,9 @@ public static class ServiceCollectionExtensions
             services.AddKeyedScoped<IQueueManager>(RecordSource.Sonarr, (sp, _) => sp.GetRequiredService<SonarrClient>());
             services.AddTransient(sp => sp.GetRequiredKeyedService<IQueueManager>(RecordSource.Sonarr));
 
+            services.AddKeyedScoped<IUpgradeManager>(RecordSource.Sonarr, (sp, _) => sp.GetRequiredService<SonarrClient>());
+            services.AddTransient(sp => sp.GetRequiredKeyedService<IUpgradeManager>(RecordSource.Sonarr));
+
             return services;
         }
     }
