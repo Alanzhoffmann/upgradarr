@@ -5,21 +5,17 @@ using Microsoft.Extensions.Options;
 using Upgradarr.Apps.Enums;
 using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Models;
-using Upgradarr.Apps.Radarr;
-using Upgradarr.Apps.Radarr.Models;
-using Upgradarr.Apps.Sonarr;
-using Upgradarr.Apps.Sonarr.Models;
 
 namespace Huntarr.Net.Api.Services;
 
 public class CleanupService
 {
-    private readonly SonarrClient _sonarrClient;
-    private readonly RadarrClient _radarrClient;
     private readonly CleanupOptions _options;
     private readonly ILogger<CleanupService> _logger;
     private readonly AppDbContext _dbContext;
     private readonly TimeProvider _timeProvider;
+    private readonly IEnumerable<IQueueManager> _queueManagers;
+    private readonly IServiceProvider _serviceProvider;
 
     private static readonly string[] _stalledErrorMessages = ["The download is stalled with no connections", "metadata"];
 
@@ -52,20 +48,20 @@ public class CleanupService
     ];
 
     public CleanupService(
-        SonarrClient sonarrClient,
-        RadarrClient radarrClient,
         IOptionsSnapshot<CleanupOptions> options,
         ILogger<CleanupService> logger,
         AppDbContext dbContext,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        IEnumerable<IQueueManager> queueManagers,
+        IServiceProvider serviceProvider
     )
     {
-        _sonarrClient = sonarrClient;
-        _radarrClient = radarrClient;
         _options = options.Value;
         _logger = logger;
         _dbContext = dbContext;
         _timeProvider = timeProvider;
+        _queueManagers = queueManagers;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task PerformCleanupAsync(CancellationToken cancellationToken = default)
@@ -216,120 +212,32 @@ public class CleanupService
             return true;
         }
 
-        // Check custom format score against downloaded episodes/movies
-        if (item is SonarrQueueResource sonarrItem && sonarrItem.EpisodeId.HasValue)
+        var queueManager = _serviceProvider.GetKeyedService<IQueueManager>(item.Source);
+        if (queueManager is null)
         {
-            var episodes = await _sonarrClient.GetEpisodesAsync(
-                episodeIds: [sonarrItem.EpisodeId.Value],
-                includeEpisodeFile: true,
-                cancellationToken: cancellationToken
-            );
-
-            var episode = episodes.FirstOrDefault();
-            if (episode?.EpisodeFile is not null)
-            {
-                // Episode has a downloaded file, compare scores
-                var downloadedScore = episode.EpisodeFile.CustomFormatScore;
-                if (
-                    item.CustomFormatScore <= downloadedScore
-                    && (
-                        sonarrItem.Quality?.Quality is null
-                        || episode.EpisodeFile.Quality?.Quality is null
-                        || sonarrItem.Quality.Quality.Resolution <= episode.EpisodeFile.Quality.Quality.Resolution
-                    )
-                )
-                {
-                    _logger.LogLowerCustomFormatScore(item.Title, item.CustomFormatScore, downloadedScore);
-                    return true;
-                }
-            }
-        }
-        else if (item is RadarrQueueResource radarrItem && radarrItem.MovieId.HasValue)
-        {
-            var movie = await _radarrClient.GetMovieByIdAsync(radarrItem.MovieId.Value, cancellationToken);
-
-            if (movie?.MovieFile is not null)
-            {
-                // Movie has a downloaded file, compare scores
-                var downloadedScore = movie.MovieFile.CustomFormatScore ?? 0;
-                if (
-                    item.CustomFormatScore <= downloadedScore
-                    && (
-                        radarrItem.Quality?.Quality is null
-                        || movie.MovieFile.Quality?.Quality is null
-                        || radarrItem.Quality.Quality.Resolution <= movie.MovieFile.Quality.Quality.Resolution
-                    )
-                )
-                {
-                    _logger.LogLowerCustomFormatScore(item.Title, item.CustomFormatScore, downloadedScore);
-                    return true;
-                }
-            }
+            _logger.LogErrorRemovingItemFromQueue(item.Source);
+            return false;
         }
 
-        return false;
+        var (shouldRemove, downloadedScore) = await queueManager.ShouldRemoveImmediately(item, cancellationToken);
+        if (!shouldRemove)
+        {
+            return false;
+        }
+
+        _logger.LogLowerCustomFormatScore(item.Title, item.CustomFormatScore, downloadedScore);
+        return true;
     }
 
     private async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var sonarrItems = await _sonarrClient.GetQueueAsync(cancellationToken);
-        foreach (var sonarrItem in sonarrItems.Records)
+        foreach (var queueManager in _queueManagers)
         {
-            if (cancellationToken.IsCancellationRequested)
+            var items = queueManager.GetAllQueueItems(cancellationToken);
+            await foreach (var item in items.WithCancellation(cancellationToken))
             {
-                yield break;
+                yield return item;
             }
-
-            if (sonarrItem.DownloadId is null)
-            {
-                // Skip items with null DownloadId, as these cannot be tracked for cleanup
-                continue;
-            }
-
-            if (sonarrItem.DownloadId.Equals(sonarrItem.Title, StringComparison.OrdinalIgnoreCase) && sonarrItem.EpisodeId.HasValue)
-            {
-                var episode = await _sonarrClient.GetEpisodeByIdAsync(sonarrItem.EpisodeId.Value, cancellationToken);
-                if (episode is not null)
-                {
-                    yield return sonarrItem with
-                    {
-                        Title = $"{episode.Series?.Title} {episode.SeasonNumber}x{episode.EpisodeNumber:00} - {episode.Title}",
-                    };
-                    continue;
-                }
-            }
-
-            yield return sonarrItem;
-        }
-
-        var radarrItems = await _radarrClient.GetQueueAsync(cancellationToken: cancellationToken);
-        foreach (var radarrItem in radarrItems.Records)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                yield break;
-            }
-
-            if (radarrItem.DownloadId is null)
-            {
-                // Skip items with null DownloadId, as these cannot be tracked for cleanup
-                continue;
-            }
-
-            if (radarrItem.DownloadId.Equals(radarrItem.Title, StringComparison.OrdinalIgnoreCase) && radarrItem.MovieId.HasValue)
-            {
-                var movie = await _radarrClient.GetMovieByIdAsync(radarrItem.MovieId.Value, cancellationToken);
-                if (movie is not null)
-                {
-                    yield return radarrItem with
-                    {
-                        Title = movie.Title,
-                    };
-                    continue;
-                }
-            }
-
-            yield return radarrItem;
         }
     }
 }
@@ -364,4 +272,11 @@ internal static partial class CleanupLoggerExtensions
 
     [LoggerMessage(EventId = 6, Level = LogLevel.Information, Message = "Queue item with Title: {Title} scheduled for removal at {RemoveAt}.")]
     public static partial void LogScheduledForRemoval(this ILogger logger, string? title, DateTimeOffset removeAt);
+
+    [LoggerMessage(
+        EventId = 7,
+        Level = LogLevel.Error,
+        Message = "No IQueueManager found for source {Source}. Cannot determine if item should be removed immediately."
+    )]
+    public static partial void LogErrorRemovingItemFromQueue(this ILogger logger, RecordSource source);
 }

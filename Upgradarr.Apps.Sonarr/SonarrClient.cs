@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
@@ -163,7 +164,7 @@ public class SonarrClient : IQueueManager
         return await response.Content.ReadFromJsonAsync(SonarrClientJsonSerializerContext.Default.CommandResource, cancellationToken);
     }
 
-    public async Task<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
+    public async ValueTask<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
         QueueRecord record,
         CancellationToken cancellationToken = default
     )
@@ -217,6 +218,67 @@ public class SonarrClient : IQueueManager
         }
 
         return (allDeleted, itemsToRequeue);
+    }
+
+    public async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var items = await GetQueueAsync(cancellationToken);
+        foreach (var item in items.Records)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                yield break;
+            }
+
+            if (item.DownloadId is null)
+            {
+                // Skip items with null DownloadId, as these cannot be tracked for cleanup
+                continue;
+            }
+
+            if (item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.EpisodeId.HasValue)
+            {
+                var episode = await GetEpisodeByIdAsync(item.EpisodeId.Value, cancellationToken);
+                if (episode is not null)
+                {
+                    yield return item with
+                    {
+                        Title = $"{episode.Series?.Title} {episode.SeasonNumber}x{episode.EpisodeNumber:00} - {episode.Title}",
+                    };
+                    continue;
+                }
+            }
+
+            yield return item;
+        }
+    }
+
+    public async ValueTask<(bool ShouldRemove, int DownloadedScore)> ShouldRemoveImmediately(IQueueResource item, CancellationToken cancellationToken = default)
+    {
+        if (item is not SonarrQueueResource sonarrItem || !sonarrItem.EpisodeId.HasValue)
+        {
+            return (false, 0);
+        }
+
+        var episodes = await GetEpisodesAsync(episodeIds: [sonarrItem.EpisodeId.Value], includeEpisodeFile: true, cancellationToken: cancellationToken);
+
+        var episode = episodes.FirstOrDefault();
+        if (episode?.EpisodeFile is null)
+        {
+            return (false, 0);
+        }
+
+        // Episode has a downloaded file, compare scores
+        var downloadedScore = episode.EpisodeFile.CustomFormatScore;
+        var shouldRemove =
+            item.CustomFormatScore <= downloadedScore
+            && (
+                sonarrItem.Quality?.Quality is null
+                || episode.EpisodeFile.Quality?.Quality is null
+                || sonarrItem.Quality.Quality.Resolution <= episode.EpisodeFile.Quality.Quality.Resolution
+            );
+
+        return (shouldRemove, downloadedScore);
     }
 }
 
