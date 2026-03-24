@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Domain.Entities;
@@ -43,7 +42,7 @@ public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
             .Where(e => e.Entity.RemoveAt.HasValue && e.Entity.RemoveAt.Value <= now)
             .GroupBy(e => e.Entity.Source);
 
-        var upgradeService = context.GetService<IUpgradeService>();
+        var upgradeService = _serviceProvider.GetRequiredService<IUpgradeService>();
 
         foreach (var group in entries)
         {
