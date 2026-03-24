@@ -120,4 +120,114 @@ public class UpgradeServiceTests
         var updatedState = await dbContext.UpgradeStates.FirstAsync();
         await Assert.That(updatedState.SearchState).IsEqualTo(SearchState.Searched);
     }
+
+    [Test]
+    public async Task ProcessItemUpgradeAsync_RemovesWhenActionIsRemoved()
+    {
+        await using var dbContext = CreateDbContext();
+        var timeProvider = TimeProvider.System;
+        var logger = NullLogger<UpgradeService>.Instance;
+
+        var state = new UpgradeState
+        {
+            ItemId = 2,
+            ItemType = ItemType.Series,
+            SearchState = SearchState.Pending,
+        };
+        dbContext.UpgradeStates.Add(state);
+        await dbContext.SaveChangesAsync();
+
+        var manager = Mock.Of<IUpgradeManager>();
+        manager.CanHandle(ItemType.Series).Returns(true);
+        manager.ProcessUpgradeAsync(state, Any<CancellationToken>()).Returns(UpgradeActionResult.Removed);
+
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new UpgradeService([manager.Object], dbContext, logger, timeProvider, migrationState.Object);
+
+        await service.ProcessItemUpgradeAsync(state);
+
+        var count = await dbContext.UpgradeStates.CountAsync();
+        await Assert.That(count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ProcessItemUpgradeAsync_HandlesExceptionGracefully()
+    {
+        await using var dbContext = CreateDbContext();
+        var timeProvider = TimeProvider.System;
+        var logger = NullLogger<UpgradeService>.Instance;
+
+        var state = new UpgradeState
+        {
+            ItemId = 3,
+            ItemType = ItemType.Episode,
+            SearchState = SearchState.Pending,
+        };
+        dbContext.UpgradeStates.Add(state);
+        await dbContext.SaveChangesAsync();
+
+        var manager = Mock.Of<IUpgradeManager>();
+        manager.CanHandle(ItemType.Episode).Returns(true);
+        manager.ProcessUpgradeAsync(state, Any<CancellationToken>()).Throws(new Exception("API failure"));
+
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new UpgradeService([manager.Object], dbContext, logger, timeProvider, migrationState.Object);
+
+        await service.ProcessItemUpgradeAsync(state);
+
+        var updatedState = await dbContext.UpgradeStates.FirstAsync();
+        await Assert.That(updatedState.SearchState).IsEqualTo(SearchState.Pending);
+    }
+
+    [Test]
+    public async Task InitializeUpgradeStatesAsync_AbortsIfQueueAlreadyPopulated()
+    {
+        await using var dbContext = CreateDbContext();
+        var timeProvider = TimeProvider.System;
+        var logger = NullLogger<UpgradeService>.Instance;
+
+        dbContext.UpgradeStates.Add(
+            new UpgradeState
+            {
+                ItemId = 10,
+                ItemType = ItemType.Movie,
+                SearchState = SearchState.Pending,
+            }
+        );
+        await dbContext.SaveChangesAsync();
+
+        var manager = Mock.Of<IUpgradeManager>();
+        manager
+            .BuildQueueItemsAsync(Any<CancellationToken>())
+            .Returns(
+                AsAsyncEnumerable(
+                    new UpgradeState
+                    {
+                        ItemId = 10,
+                        ItemType = ItemType.Movie,
+                        SearchState = SearchState.Pending,
+                    },
+                    new UpgradeState
+                    {
+                        ItemId = 11,
+                        ItemType = ItemType.Movie,
+                        SearchState = SearchState.Pending,
+                    }
+                )
+            );
+
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new UpgradeService([manager.Object], dbContext, logger, timeProvider, migrationState.Object);
+
+        await service.InitializeUpgradeStatesAsync();
+
+        var states = await dbContext.UpgradeStates.ToListAsync();
+        await Assert.That(states.Count).IsEqualTo(1);
+    }
 }

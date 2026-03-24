@@ -139,4 +139,144 @@ public class CleanupServiceTests
         // Since it's immediate, it marks for removal exactly at timeProvider.GetUtcNow()
         await Assert.That(tracked.RemoveAt).IsNotNull();
     }
+
+    [Test]
+    public async Task PerformCleanupAsync_IgnoresRecentPendingItem()
+    {
+        await using var dbContext = CreateDbContext();
+        var timeProvider = TimeProvider.System;
+        var logger = NullLogger<CleanupService>.Instance;
+
+        var optionsMock = Mock.Of<IOptionsSnapshot<CleanupOptions>>();
+        optionsMock.Value.Returns(
+            new CleanupOptions
+            {
+                FailedDownloadCleanupHours = 12,
+                MaxDownloadTimeHours = 24,
+                MaxItemAgeDays = 7,
+            }
+        );
+
+        var queueResource = new FakeQueueResource
+        {
+            DownloadId = "down_recent",
+            Title = "Recent Item",
+            Added = timeProvider.GetUtcNow().AddMinutes(-30),
+            OutputPath = "",
+            Id = 4,
+            Status = QueueStatus.Downloading,
+        };
+        var queueManager = Mock.Of<IQueueManager>();
+        queueManager.SourceName.Returns(RecordSource.Sonarr);
+
+        async IAsyncEnumerable<IQueueResource> GetItems()
+        {
+            yield return queueResource;
+            await Task.CompletedTask;
+        }
+        queueManager.GetAllQueueItems(Any<CancellationToken>()).Returns(GetItems());
+
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new CleanupService(optionsMock.Object, logger, dbContext, timeProvider, [queueManager.Object], migrationState.Object);
+
+        await service.PerformCleanupAsync();
+        var tracked = await dbContext.TrackedDownloads.FirstAsync();
+        await Assert.That(tracked.RemoveAt).IsNull();
+    }
+
+    [Test]
+    public async Task PerformCleanupAsync_RemovesCompletedDownload()
+    {
+        await using var dbContext = CreateDbContext();
+        var timeProvider = TimeProvider.System;
+        var logger = NullLogger<CleanupService>.Instance;
+
+        var optionsMock = Mock.Of<IOptionsSnapshot<CleanupOptions>>();
+        optionsMock.Value.Returns(
+            new CleanupOptions
+            {
+                FailedDownloadCleanupHours = 12,
+                MaxDownloadTimeHours = 24,
+                MaxItemAgeDays = 7,
+            }
+        );
+
+        var queueResource = new FakeQueueResource
+        {
+            DownloadId = "down_completed",
+            Title = "Completed",
+            Added = timeProvider.GetUtcNow().AddHours(-2),
+            OutputPath = "",
+            Id = 5,
+            Status = QueueStatus.Completed,
+        };
+        var queueManager = Mock.Of<IQueueManager>();
+        queueManager.SourceName.Returns(RecordSource.Sonarr);
+
+        async IAsyncEnumerable<IQueueResource> GetItems()
+        {
+            yield return queueResource;
+            await Task.CompletedTask;
+        }
+        queueManager.GetAllQueueItems(Any<CancellationToken>()).Returns(GetItems());
+
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new CleanupService(optionsMock.Object, logger, dbContext, timeProvider, [queueManager.Object], migrationState.Object);
+
+        await service.PerformCleanupAsync();
+        var tracked = await dbContext.TrackedDownloads.FirstAsync();
+        await Assert.That(tracked.RemoveAt).IsNotNull();
+    }
+
+    [Test]
+    public async Task PerformCleanupAsync_RemovesItemWhenNotFoundInQueueAnymore()
+    {
+        await using var dbContext = CreateDbContext();
+        var timeProvider = TimeProvider.System;
+        var logger = NullLogger<CleanupService>.Instance;
+
+        var optionsMock = Mock.Of<IOptionsSnapshot<CleanupOptions>>();
+        optionsMock.Value.Returns(
+            new CleanupOptions
+            {
+                FailedDownloadCleanupHours = 12,
+                MaxDownloadTimeHours = 24,
+                MaxItemAgeDays = 7,
+            }
+        );
+
+        dbContext.TrackedDownloads.Add(
+            new Upgradarr.Domain.Entities.QueueRecord
+            {
+                DownloadId = "down_missing",
+                Source = RecordSource.Sonarr,
+                Added = timeProvider.GetUtcNow().AddDays(-1),
+                Title = "Missing Item",
+            }
+        );
+        await dbContext.SaveChangesAsync();
+
+        var queueManager = Mock.Of<IQueueManager>();
+        queueManager.SourceName.Returns(RecordSource.Sonarr);
+
+        async IAsyncEnumerable<IQueueResource> GetItems()
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+        queueManager.GetAllQueueItems(Any<CancellationToken>()).Returns(GetItems());
+
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new CleanupService(optionsMock.Object, logger, dbContext, timeProvider, [queueManager.Object], migrationState.Object);
+
+        await service.PerformCleanupAsync();
+        var count = await dbContext.TrackedDownloads.CountAsync();
+        await Assert.That(count).IsEqualTo(0);
+    }
 }
