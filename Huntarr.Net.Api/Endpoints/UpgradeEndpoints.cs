@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Upgradarr.Application.Services;
 using Upgradarr.Data;
 using Upgradarr.Domain.Enums;
+using Upgradarr.Domain.Interfaces;
 
 namespace Huntarr.Net.Api.Endpoints;
 
@@ -26,7 +26,7 @@ public static class UpgradeEndpoints
         private static async Task<IResult> GetPendingUpgradeStates(AppDbContext dbContext) =>
             Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).Where(u => u.SearchState == SearchState.Pending).ToListAsync());
 
-        private static async Task<IResult> ResetUpgradeStates(UpgradeService upgradeService, CancellationToken cancellationToken)
+        private static async Task<IResult> ResetUpgradeStates(IUpgradeService upgradeService, CancellationToken cancellationToken)
         {
             await upgradeService.InitializeUpgradeStatesAsync(cancellationToken);
             return Results.Ok("Upgrade states reinitialized");

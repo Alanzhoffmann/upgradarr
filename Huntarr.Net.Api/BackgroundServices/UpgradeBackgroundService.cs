@@ -1,5 +1,5 @@
 ﻿using Upgradarr.Application.Extensions;
-using Upgradarr.Application.Services;
+using Upgradarr.Domain.Interfaces;
 
 namespace Huntarr.Net.Api.BackgroundServices;
 
@@ -27,7 +27,7 @@ public class UpgradeBackgroundService : BackgroundService
             // Initialize upgrade states on first run
             using (var scope = _serviceProvider.CreateScope())
             {
-                var upgradeService = scope.ServiceProvider.GetRequiredService<UpgradeService>();
+                var upgradeService = scope.ServiceProvider.GetRequiredService<IUpgradeService>();
                 try
                 {
                     await upgradeService.InitializeUpgradeStatesAsync(stoppingToken);
@@ -58,7 +58,7 @@ public class UpgradeBackgroundService : BackgroundService
 
     private static async Task ProcessUpgradeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
-        var upgradeService = serviceProvider.GetRequiredService<UpgradeService>();
+        var upgradeService = serviceProvider.GetRequiredService<IUpgradeService>();
         await upgradeService.ProcessUpgradeAsync(cancellationToken);
     }
 }

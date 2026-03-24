@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Upgradarr.Application.Options;
 using Upgradarr.Application.Services;
 using Upgradarr.Data.Extensions;
+using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Application.Extensions;
 
@@ -16,7 +17,7 @@ public static class ServiceCollectionExtensions
             services.TryAddSingleton(TimeProvider.System);
 
             services.AddScoped<CleanupService>();
-            services.AddScoped<UpgradeService>();
+            services.AddScoped<IUpgradeService, UpgradeService>();
 
             services
                 .AddOptions<CleanupOptions>()

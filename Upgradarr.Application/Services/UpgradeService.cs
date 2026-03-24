@@ -14,7 +14,7 @@ using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Application.Services;
 
-public class UpgradeService : IUpgradeService
+internal class UpgradeService : IUpgradeService
 {
     private readonly SonarrClient _sonarrClient;
     private readonly RadarrClient _radarrClient;
