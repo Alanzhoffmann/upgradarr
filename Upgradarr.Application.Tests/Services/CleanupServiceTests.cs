@@ -4,12 +4,14 @@ using Microsoft.Extensions.Options;
 using Upgradarr.Application.Options;
 using Upgradarr.Application.Services;
 using Upgradarr.Data;
+using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 using Upgradarr.Domain.ValueObjects;
 
 [assembly: GenerateMock(typeof(IQueueManager))]
 [assembly: GenerateMock(typeof(IOptionsSnapshot<CleanupOptions>))]
+[assembly: GenerateMock(typeof(IMigrationState))]
 
 namespace Upgradarr.Application.Tests.Services;
 
@@ -76,7 +78,10 @@ public class CleanupServiceTests
 
         queueManager.GetAllQueueItems(Any<CancellationToken>()).Returns(GetItems());
 
-        var service = new CleanupService(optionsMock.Object, logger, dbContext, timeProvider, [queueManager.Object]);
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new CleanupService(optionsMock.Object, logger, dbContext, timeProvider, [queueManager.Object], migrationState.Object);
 
         // Act
         await service.PerformCleanupAsync();
@@ -123,7 +128,10 @@ public class CleanupServiceTests
         }
         queueManager.GetAllQueueItems(Any<CancellationToken>()).Returns(GetItems());
 
-        var service = new CleanupService(optionsMock.Object, logger, dbContext, timeProvider, [queueManager.Object]);
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new CleanupService(optionsMock.Object, logger, dbContext, timeProvider, [queueManager.Object], migrationState.Object);
 
         await service.PerformCleanupAsync();
 

@@ -2,11 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Upgradarr.Application.Services;
 using Upgradarr.Data;
+using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 
 [assembly: GenerateMock(typeof(IUpgradeManager))]
+[assembly: GenerateMock(typeof(IMigrationState))]
 
 namespace Upgradarr.Application.Tests.Services;
 
@@ -42,17 +44,10 @@ public class UpgradeServiceTests
         var manager2 = Mock.Of<IUpgradeManager>();
         manager2
             .BuildQueueItemsAsync(Any<CancellationToken>())
-            .Returns([
-                new UpgradeState
-                {
-                    ItemType = ItemType.Movie,
-                    ItemId = 2,
-                    SearchState = SearchState.Pending,
-                    IsMonitored = true,
-                },
-            ]);
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
 
-        var service = new UpgradeService([manager1.Object, manager2.Object], dbContext, logger, timeProvider);
+        var service = new UpgradeService([manager1.Object, manager2.Object], dbContext, logger, timeProvider, migrationState.Object);
 
         // Act
         await service.InitializeUpgradeStatesAsync();
@@ -88,7 +83,10 @@ public class UpgradeServiceTests
         manager2.CanHandle(ItemType.Movie).Returns(true);
         manager2.ProcessUpgradeAsync(state, Any<CancellationToken>()).Returns(UpgradeActionResult.Searched);
 
-        var service = new UpgradeService([manager1.Object, manager2.Object], dbContext, logger, timeProvider);
+        var migrationState = Mock.Of<IMigrationState>();
+        migrationState.IsDone.Returns(true);
+
+        var service = new UpgradeService([manager1.Object, manager2.Object], dbContext, logger, timeProvider, migrationState.Object);
 
         // Act
         await service.ProcessItemUpgradeAsync(state);

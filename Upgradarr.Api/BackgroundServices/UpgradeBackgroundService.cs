@@ -1,4 +1,4 @@
-﻿using Upgradarr.Application.Extensions;
+using Upgradarr.Application.Extensions;
 using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Api.BackgroundServices;
@@ -21,29 +21,14 @@ public class UpgradeBackgroundService : BackgroundService
             _logger.LogStartingUpgradeService();
             stoppingToken.Register(_logger.LogStoppingUpgradeService);
 
-            // Initial delay to allow application to fully start
-            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-
-            // Initialize upgrade states on first run
-            using (var scope = _serviceProvider.CreateScope())
-            {
-                var upgradeService = scope.ServiceProvider.GetRequiredService<IUpgradeService>();
-                try
-                {
-                    await upgradeService.InitializeUpgradeStatesAsync(stoppingToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogErrorInitializingUpgradeStates(ex);
-                }
-            }
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
-                    await ProcessUpgradeAsync(scope.ServiceProvider, stoppingToken);
+                    var upgradeService = scope.ServiceProvider.GetRequiredService<IUpgradeService>();
+                    await upgradeService.InitializeUpgradeStatesAsync(stoppingToken);
+                    await upgradeService.ProcessUpgradeAsync(stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -54,11 +39,5 @@ public class UpgradeBackgroundService : BackgroundService
                 await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
             }
         }
-    }
-
-    private static async Task ProcessUpgradeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
-        var upgradeService = serviceProvider.GetRequiredService<IUpgradeService>();
-        await upgradeService.ProcessUpgradeAsync(cancellationToken);
     }
 }

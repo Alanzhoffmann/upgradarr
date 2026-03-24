@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Application.Extensions;
 using Upgradarr.Data;
+using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
@@ -15,17 +16,28 @@ internal class UpgradeService : IUpgradeService
     private readonly AppDbContext _dbContext;
     private readonly ILogger<UpgradeService> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly IMigrationState _migrationState;
 
-    public UpgradeService(IEnumerable<IUpgradeManager> upgradeManagers, AppDbContext dbContext, ILogger<UpgradeService> logger, TimeProvider timeProvider)
+    public UpgradeService(
+        IEnumerable<IUpgradeManager> upgradeManagers,
+        AppDbContext dbContext,
+        ILogger<UpgradeService> logger,
+        TimeProvider timeProvider,
+        IMigrationState migrationState
+    )
     {
         _upgradeManagers = upgradeManagers;
         _dbContext = dbContext;
         _logger = logger;
         _timeProvider = timeProvider;
+        _migrationState = migrationState;
     }
 
     public async Task ProcessUpgradeAsync(CancellationToken cancellationToken = default)
     {
+        if (!_migrationState.IsDone)
+            return;
+
         UpgradeState? state;
         do
         {
@@ -152,6 +164,9 @@ internal class UpgradeService : IUpgradeService
 
     public async Task InitializeUpgradeStatesAsync(CancellationToken cancellationToken = default)
     {
+        if (!_migrationState.IsDone)
+            return;
+
         if (await _dbContext.UpgradeStates.AnyAsync(cancellationToken))
             return;
 
