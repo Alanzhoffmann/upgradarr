@@ -1,19 +1,23 @@
-﻿using Huntarr.Net.Api.Models;
-using Huntarr.Net.Api.Services;
-using Huntarr.Net.Clients;
-using Huntarr.Net.Clients.Enums;
+﻿using Huntarr.Net.Api.Services;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Upgradarr.Apps.Enums;
+using Upgradarr.Apps.Interfaces;
+using Upgradarr.Apps.Models;
 
 namespace Huntarr.Net.Api.Interceptors;
 
 public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
 {
     private readonly TimeProvider _timeProvider;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<DeleteQueueItemInterceptor> _logger;
 
-    public DeleteQueueItemInterceptor(TimeProvider timeProvider)
+    public DeleteQueueItemInterceptor(TimeProvider timeProvider, IServiceProvider serviceProvider, ILogger<DeleteQueueItemInterceptor> logger)
     {
         _timeProvider = timeProvider;
+        _serviceProvider = serviceProvider;
+        _logger = logger;
     }
 
     public async ValueTask<InterceptionResult<int>> SavingChangesAsync(
@@ -42,128 +46,21 @@ public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
 
         foreach (var group in entries)
         {
-            switch (group.Key)
+            var queueManager = _serviceProvider.GetKeyedService<IQueueManager>(group.Key);
+            if (queueManager is null)
             {
-                case RecordSource.Sonarr:
-                    await DeleteSonarrQueueItemsAsync(context, group.Select(e => e.Entity), upgradeService, cancellationToken);
-                    break;
-                case RecordSource.Radarr:
-                    await DeleteRadarrQueueItemsAsync(context, group.Select(e => e.Entity), upgradeService, cancellationToken);
-                    break;
-            }
-        }
-
-        return result;
-    }
-
-    private static async Task DeleteRadarrQueueItemsAsync(
-        AppDbContext context,
-        IEnumerable<QueueRecord> enumerable,
-        UpgradeService upgradeService,
-        CancellationToken cancellationToken
-    )
-    {
-        var radarrClient = context.GetService<RadarrClient>();
-        foreach (var entity in enumerable)
-        {
-            bool allDeleted = true;
-            var itemsToRequeu = new List<(ItemType, int, int?, int?, int?)>();
-
-            foreach (var itemScore in entity.ItemScores)
-            {
-                if (
-                    !await radarrClient.DeleteQueueItemAsync(
-                        itemScore.ItemId,
-                        removeFromClient: true,
-                        blocklist: true,
-                        skipRedownload: true,
-                        cancellationToken: cancellationToken
-                    )
-                )
-                {
-                    allDeleted = false;
-                }
-                else
-                {
-                    // Add movie to re-queue
-                    itemsToRequeu.Add((ItemType.Movie, itemScore.ItemId, null, null, null));
-                }
+                _logger.LogErrorRemovingItemFromQueue(group.Key);
+                continue;
             }
 
-            if (allDeleted)
+            foreach (var entity in group.Select(e => e.Entity))
             {
-                context.Remove(entity);
+                var (allDeleted, itemsToRequeue) = await queueManager.DeleteQueueItemsAsync(entity, cancellationToken);
 
-                // Add items to front of upgrade queue
-                if (itemsToRequeu.Count > 0)
+                if (allDeleted)
                 {
-                    await upgradeService.AddItemsToFrontOfQueueAsync(itemsToRequeu, cancellationToken);
+                    context.Remove(entity);
                 }
-            }
-        }
-    }
-
-    private static async Task DeleteSonarrQueueItemsAsync(
-        AppDbContext context,
-        IEnumerable<QueueRecord> entities,
-        UpgradeService upgradeService,
-        CancellationToken cancellationToken
-    )
-    {
-        var sonarrClient = context.GetService<SonarrClient>();
-        foreach (var entity in entities)
-        {
-            bool allDeleted = true;
-            var itemsToRequeue = new List<(ItemType, int, int?, int?, int?)>();
-
-            foreach (var itemScore in entity.ItemScores)
-            {
-                if (
-                    !await sonarrClient.DeleteQueueItemAsync(
-                        itemScore.ItemId,
-                        removeFromClient: true,
-                        blocklist: true,
-                        skipRedownload: true,
-                        cancellationToken: cancellationToken
-                    )
-                )
-                {
-                    allDeleted = false;
-                }
-                else
-                {
-                    // Get episode details to determine show/season/episode to re-queue
-                    try
-                    {
-                        var episodes = await sonarrClient.GetEpisodesAsync(episodeIds: [itemScore.ItemId], cancellationToken: cancellationToken);
-                        var episode = episodes.FirstOrDefault();
-
-                        if (episode is not null)
-                        {
-                            // Add show, season, and episode to re-queue
-                            var seriesId = episode.SeriesId;
-
-                            // Get series to add it back
-                            var series = await sonarrClient.GetSeriesByIdAsync(seriesId, cancellationToken: cancellationToken);
-                            if (series is not null && series.Monitored)
-                            {
-                                itemsToRequeue.Add((ItemType.Series, seriesId, null, null, null));
-                                itemsToRequeue.Add((ItemType.Season, episode.SeasonNumber, seriesId, episode.SeasonNumber, null));
-                                itemsToRequeue.Add((ItemType.Episode, episode.Id, seriesId, episode.SeasonNumber, episode.EpisodeNumber));
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // If we can't get episode details, just add the episode ID back
-                        itemsToRequeue.Add((ItemType.Episode, itemScore.ItemId, null, null, null));
-                    }
-                }
-            }
-
-            if (allDeleted)
-            {
-                context.Remove(entity);
 
                 // Add items to front of upgrade queue
                 if (itemsToRequeue.Count > 0)
@@ -172,5 +69,13 @@ public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
                 }
             }
         }
+
+        return result;
     }
+}
+
+static partial class DeleteQueueItemLogger
+{
+    [LoggerMessage(EventId = 4027, Level = LogLevel.Error, Message = "No IQueueManager found for source {Source}. Cannot delete queue items.")]
+    public static partial void LogErrorRemovingItemFromQueue(this ILogger logger, RecordSource source);
 }

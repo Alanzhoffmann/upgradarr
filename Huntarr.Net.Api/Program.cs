@@ -5,9 +5,10 @@ using Huntarr.Net.Api.Interceptors;
 using Huntarr.Net.Api.Models;
 using Huntarr.Net.Api.Options;
 using Huntarr.Net.Api.Services;
-using Huntarr.Net.Clients;
-using Huntarr.Net.Clients.Options;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Apps.Models;
+using Upgradarr.Apps.Radarr.Extensions;
+using Upgradarr.Apps.Sonarr.Extensions;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -29,18 +30,17 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton(TimeProvider.System);
 
-builder.Services.Configure<SonarrOptions>(builder.Configuration.GetSection(SonarrOptions.SectionName));
-builder.Services.Configure<RadarrOptions>(builder.Configuration.GetSection(RadarrOptions.SectionName));
 builder.Services.Configure<CleanupOptions>(builder.Configuration.GetSection(CleanupOptions.SectionName));
 
 builder.Services.AddHostedService<UpgradeBackgroundService>();
 builder.Services.AddHostedService<CleanupBackgroundService>();
 
-builder.Services.AddHttpClient<SonarrClient>();
-builder.Services.AddHttpClient<RadarrClient>();
 builder.Services.AddScoped<CleanupService>();
 builder.Services.AddScoped<UpgradeService>();
 builder.Services.AddSingleton<DeleteQueueItemInterceptor>();
+
+builder.Services.AddRadarr();
+builder.Services.AddSonarr();
 
 builder.Services.AddDbContext<AppDbContext>(
     (serviceProvider, options) =>

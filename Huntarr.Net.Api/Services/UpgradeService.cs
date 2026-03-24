@@ -1,7 +1,12 @@
 using Huntarr.Net.Api.Extensions;
 using Huntarr.Net.Api.Models;
-using Huntarr.Net.Clients;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Apps.Enums;
+using Upgradarr.Apps.Models;
+using Upgradarr.Apps.Radarr;
+using Upgradarr.Apps.Radarr.Models;
+using Upgradarr.Apps.Sonarr;
+using Upgradarr.Apps.Sonarr.Models;
 
 namespace Huntarr.Net.Api.Services;
 
@@ -465,8 +470,8 @@ public class UpgradeService
     /// Sets IsMissing status immediately when a missing episode is detected.
     /// </summary>
     private async Task<List<UpgradeState>> BuildQueueItemsAsync(
-        IEnumerable<Clients.Models.SeriesResource> series,
-        IEnumerable<Clients.Models.MovieResource> movies,
+        IEnumerable<SeriesResource> series,
+        IEnumerable<MovieResource> movies,
         CancellationToken cancellationToken = default
     )
     {
@@ -759,10 +764,7 @@ public class UpgradeService
     /// <summary>
     /// Add items to the front of the queue (for cleanup re-processing)
     /// </summary>
-    public async Task AddItemsToFrontOfQueueAsync(
-        IList<(ItemType itemType, int itemId, int? parentSeriesId, int? seasonNumber, int? episodeNumber)> items,
-        CancellationToken cancellationToken = default
-    )
+    public async Task AddItemsToFrontOfQueueAsync(IList<ItemToQueue> items, CancellationToken cancellationToken = default)
     {
         try
         {

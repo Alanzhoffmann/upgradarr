@@ -1,4 +1,4 @@
-﻿using Huntarr.Net.Api.Models;
+﻿using Upgradarr.Apps.Enums;
 
 namespace Huntarr.Net.Api.Extensions;
 
