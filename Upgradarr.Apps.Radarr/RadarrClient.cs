@@ -1,11 +1,14 @@
 ﻿using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
-using Upgradarr.Apps.Enums;
-using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Models;
 using Upgradarr.Apps.Radarr.Models;
+using Upgradarr.Domain.Entities;
+using Upgradarr.Domain.Enums;
+using Upgradarr.Domain.Interfaces;
+using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Apps.Radarr;
 
@@ -108,7 +111,7 @@ public class RadarrClient : IQueueManager
         return await response.Content.ReadFromJsonAsync(RadarrClientJsonSerializerContext.Default.CommandResource, cancellationToken);
     }
 
-    public async Task<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
+    public async ValueTask<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
         QueueRecord record,
         CancellationToken cancellationToken = default
     )
@@ -138,6 +141,75 @@ public class RadarrClient : IQueueManager
         }
 
         return (allDeleted, itemsToRequeue);
+    }
+
+    public async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        const int PageSize = 100;
+
+        var page = 1;
+        PagingResource<RadarrQueueResource> items;
+        do
+        {
+            items = await GetQueueAsync(page, PageSize, cancellationToken: cancellationToken);
+            foreach (var item in items.Records)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    yield break;
+                }
+
+                if (item.DownloadId is null)
+                {
+                    // Skip items with null DownloadId, as these cannot be tracked for cleanup
+                    continue;
+                }
+
+                if (item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.MovieId.HasValue)
+                {
+                    var movie = await GetMovieByIdAsync(item.MovieId.Value, cancellationToken);
+                    if (movie is not null)
+                    {
+                        yield return item with
+                        {
+                            Title = movie.Title,
+                        };
+                        continue;
+                    }
+                }
+
+                yield return item;
+            }
+
+            page++;
+        } while (items.Records?.Count > 0);
+    }
+
+    public async ValueTask<(bool ShouldRemove, int DownloadedScore)> ShouldRemoveImmediately(IQueueResource item, CancellationToken cancellationToken = default)
+    {
+        if (item is not RadarrQueueResource radarrItem || !radarrItem.MovieId.HasValue)
+        {
+            return (false, 0);
+        }
+
+        var movie = await GetMovieByIdAsync(radarrItem.MovieId.Value, cancellationToken);
+
+        if (movie?.MovieFile is null)
+        {
+            return (false, 0);
+        }
+
+        // Movie has a downloaded file, compare scores
+        var downloadedScore = movie.MovieFile.CustomFormatScore ?? 0;
+        var shouldRemove =
+            item.CustomFormatScore <= downloadedScore
+            && (
+                radarrItem.Quality?.Quality is null
+                || movie.MovieFile.Quality?.Quality is null
+                || radarrItem.Quality.Quality.Resolution <= movie.MovieFile.Quality.Quality.Resolution
+            );
+
+        return (shouldRemove, downloadedScore);
     }
 }
 

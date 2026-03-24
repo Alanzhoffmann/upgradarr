@@ -1,7 +1,9 @@
 ﻿using System.Text.Json.Serialization;
 using Upgradarr.Apps.Enums;
-using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Models;
+using Upgradarr.Domain.Enums;
+using Upgradarr.Domain.Interfaces;
+using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Apps.Sonarr.Models;
 

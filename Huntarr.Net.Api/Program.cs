@@ -1,14 +1,12 @@
 ﻿using System.Text.Json.Serialization;
-using Huntarr.Net.Api;
 using Huntarr.Net.Api.BackgroundServices;
-using Huntarr.Net.Api.Interceptors;
-using Huntarr.Net.Api.Models;
-using Huntarr.Net.Api.Options;
-using Huntarr.Net.Api.Services;
+using Huntarr.Net.Api.Endpoints;
 using Microsoft.EntityFrameworkCore;
-using Upgradarr.Apps.Models;
+using Upgradarr.Application.Extensions;
 using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Sonarr.Extensions;
+using Upgradarr.Data;
+using Upgradarr.Domain.Entities;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -28,27 +26,13 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-builder.Services.AddSingleton(TimeProvider.System);
-
-builder.Services.Configure<CleanupOptions>(builder.Configuration.GetSection(CleanupOptions.SectionName));
-
 builder.Services.AddHostedService<UpgradeBackgroundService>();
 builder.Services.AddHostedService<CleanupBackgroundService>();
 
-builder.Services.AddScoped<CleanupService>();
-builder.Services.AddScoped<UpgradeService>();
-builder.Services.AddSingleton<DeleteQueueItemInterceptor>();
+builder.Services.AddApplicationServices();
 
 builder.Services.AddRadarr();
 builder.Services.AddSonarr();
-
-builder.Services.AddDbContext<AppDbContext>(
-    (serviceProvider, options) =>
-    {
-        options.UseSqlite("Data Source=/config/app.db;Cache=Shared");
-        options.AddInterceptors(serviceProvider.GetRequiredService<DeleteQueueItemInterceptor>());
-    }
-);
 
 var app = builder.Build();
 
@@ -57,43 +41,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-var cleanupApi = app.MapGroup("/cleanup");
-cleanupApi
-    .MapGet(
-        "/run",
-        async (CleanupService cleanupService, CancellationToken cancellationToken) =>
-        {
-            await cleanupService.PerformCleanupAsync(cancellationToken);
-            return Results.Ok();
-        }
-    )
-    .WithName("RunCleanup");
-
-cleanupApi.MapGet("/", async (AppDbContext dbContext) => Results.Ok(await dbContext.TrackedDownloads.ToListAsync())).WithName("GetTrackedDownloads");
-
-var upgradeApi = app.MapGroup("/upgrade");
-upgradeApi
-    .MapGet("/", async (AppDbContext dbContext) => Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).ToListAsync()))
-    .WithName("GetUpgradeStates");
-
-upgradeApi
-    .MapGet(
-        "/pending",
-        async (AppDbContext dbContext) =>
-            Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).Where(u => u.SearchState == SearchState.Pending).ToListAsync())
-    )
-    .WithName("GetPendingUpgradeStates");
-
-upgradeApi
-    .MapPost(
-        "/reset",
-        async (UpgradeService upgradeService, CancellationToken cancellationToken) =>
-        {
-            await upgradeService.InitializeUpgradeStatesAsync(cancellationToken);
-            return Results.Ok("Upgrade states reinitialized");
-        }
-    )
-    .WithName("ResetUpgradeStates");
+app.MapCleanupEndpoints();
+app.MapUpgradeEndpoints();
 
 if (!Directory.Exists("/config"))
 {

@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Upgradarr.Apps.Enums;
-using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Sonarr.Options;
+using Upgradarr.Domain.Enums;
+using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Apps.Sonarr.Extensions;
 
@@ -37,6 +37,7 @@ public static class ServiceCollectionExtensions
                 );
 
             services.AddKeyedScoped<IQueueManager>(RecordSource.Sonarr, (sp, _) => sp.GetRequiredService<SonarrClient>());
+            services.AddTransient(sp => sp.GetRequiredKeyedService<IQueueManager>(RecordSource.Sonarr));
 
             return services;
         }

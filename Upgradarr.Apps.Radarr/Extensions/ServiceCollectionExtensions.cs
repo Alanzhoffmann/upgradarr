@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Upgradarr.Apps.Enums;
-using Upgradarr.Apps.Interfaces;
 using Upgradarr.Apps.Radarr.Options;
+using Upgradarr.Domain.Enums;
+using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Apps.Radarr.Extensions;
 
@@ -37,6 +37,7 @@ public static class ServiceCollectionExtensions
                 );
 
             services.AddKeyedScoped<IQueueManager>(RecordSource.Radarr, (sp, _) => sp.GetRequiredService<RadarrClient>());
+            services.AddTransient(sp => sp.GetRequiredKeyedService<IQueueManager>(RecordSource.Radarr));
 
             return services;
         }
