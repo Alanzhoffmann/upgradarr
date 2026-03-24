@@ -1,13 +1,12 @@
 ﻿using System.Text.Json.Serialization;
 using Huntarr.Net.Api.BackgroundServices;
+using Huntarr.Net.Api.Endpoints;
 using Microsoft.EntityFrameworkCore;
 using Upgradarr.Application.Extensions;
-using Upgradarr.Application.Services;
 using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Sonarr.Extensions;
 using Upgradarr.Data;
 using Upgradarr.Domain.Entities;
-using Upgradarr.Domain.Enums;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -42,43 +41,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-var cleanupApi = app.MapGroup("/cleanup");
-cleanupApi
-    .MapGet(
-        "/run",
-        async (CleanupService cleanupService, CancellationToken cancellationToken) =>
-        {
-            await cleanupService.PerformCleanupAsync(cancellationToken);
-            return Results.Ok();
-        }
-    )
-    .WithName("RunCleanup");
-
-cleanupApi.MapGet("/", async (AppDbContext dbContext) => Results.Ok(await dbContext.TrackedDownloads.ToListAsync())).WithName("GetTrackedDownloads");
-
-var upgradeApi = app.MapGroup("/upgrade");
-upgradeApi
-    .MapGet("/", async (AppDbContext dbContext) => Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).ToListAsync()))
-    .WithName("GetUpgradeStates");
-
-upgradeApi
-    .MapGet(
-        "/pending",
-        async (AppDbContext dbContext) =>
-            Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).Where(u => u.SearchState == SearchState.Pending).ToListAsync())
-    )
-    .WithName("GetPendingUpgradeStates");
-
-upgradeApi
-    .MapPost(
-        "/reset",
-        async (UpgradeService upgradeService, CancellationToken cancellationToken) =>
-        {
-            await upgradeService.InitializeUpgradeStatesAsync(cancellationToken);
-            return Results.Ok("Upgrade states reinitialized");
-        }
-    )
-    .WithName("ResetUpgradeStates");
+app.MapCleanupEndpoints();
+app.MapUpgradeEndpoints();
 
 if (!Directory.Exists("/config"))
 {
