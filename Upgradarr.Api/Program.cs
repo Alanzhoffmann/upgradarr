@@ -27,7 +27,6 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddHostedService<UpgradeBackgroundService>();
 builder.Services.AddHostedService<CleanupBackgroundService>();
-builder.Services.AddHostedService<MigrationBackgroundService>();
 
 builder.Services.AddApplicationServices();
 

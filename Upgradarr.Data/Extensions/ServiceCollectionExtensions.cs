@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Upgradarr.Data.BackgroundServices;
 using Upgradarr.Data.Interceptors;
 using Upgradarr.Data.Interfaces;
 using Upgradarr.Data.Internal;
@@ -12,6 +13,7 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddUpgradarrData()
         {
+            services.AddHostedService<MigrationBackgroundService>();
             services.AddSingleton<IMigrationState, MigrationState>();
 
             services.AddSingleton<DeleteQueueItemInterceptor>();

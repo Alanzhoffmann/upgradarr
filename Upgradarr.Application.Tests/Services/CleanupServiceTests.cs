@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Upgradarr.Application.Options;
-using Upgradarr.Application.Services;
 using Upgradarr.Data;
 using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Enums;
@@ -13,7 +12,7 @@ using Upgradarr.Domain.ValueObjects;
 [assembly: GenerateMock(typeof(IOptionsSnapshot<CleanupOptions>))]
 [assembly: GenerateMock(typeof(IMigrationState))]
 
-namespace Upgradarr.Application.Tests.Services;
+namespace Upgradarr.Application.Services;
 
 public class FakeQueueResource : IQueueResource
 {
@@ -250,7 +249,7 @@ public class CleanupServiceTests
         );
 
         dbContext.TrackedDownloads.Add(
-            new Upgradarr.Domain.Entities.QueueRecord
+            new Domain.Entities.QueueRecord
             {
                 DownloadId = "down_missing",
                 Source = RecordSource.Sonarr,
