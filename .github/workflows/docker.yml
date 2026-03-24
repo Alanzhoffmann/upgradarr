@@ -60,7 +60,7 @@ jobs:
 
     - name: Publish container
       run: |
-        dotnet publish Huntarr.Net.Api/Huntarr.Net.Api.csproj \
+        dotnet publish Upgradarr.Api/Upgradarr.Api.csproj \
           -t:PublishContainer \
           -c Release \
           -p:ContainerRegistry=ghcr.io \

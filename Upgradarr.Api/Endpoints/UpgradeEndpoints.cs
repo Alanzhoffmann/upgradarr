@@ -3,7 +3,7 @@ using Upgradarr.Data;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 
-namespace Huntarr.Net.Api.Endpoints;
+namespace Upgradarr.Api.Endpoints;
 
 public static class UpgradeEndpoints
 {

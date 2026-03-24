@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
-using Huntarr.Net.Api.BackgroundServices;
-using Huntarr.Net.Api.Endpoints;
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Api.BackgroundServices;
+using Upgradarr.Api.Endpoints;
 using Upgradarr.Application.Extensions;
 using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Sonarr.Extensions;

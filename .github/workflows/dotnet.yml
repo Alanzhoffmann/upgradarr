@@ -30,7 +30,7 @@ jobs:
       run: dotnet test --no-build --verbosity normal
     - name: Publish
       if: github.event_name == 'push'
-      run: dotnet publish Huntarr.Net.Api/Huntarr.Net.Api.csproj -c Release -o ./publish
+      run: dotnet publish Upgradarr.Api/Upgradarr.Api.csproj -c Release -o ./publish
     - name: Upload artifact
       if: github.event_name == 'push'
       uses: actions/upload-artifact@v4

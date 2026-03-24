@@ -1,7 +1,7 @@
 ﻿using Upgradarr.Application.Extensions;
 using Upgradarr.Domain.Interfaces;
 
-namespace Huntarr.Net.Api.BackgroundServices;
+namespace Upgradarr.Api.BackgroundServices;
 
 public class UpgradeBackgroundService : BackgroundService
 {
