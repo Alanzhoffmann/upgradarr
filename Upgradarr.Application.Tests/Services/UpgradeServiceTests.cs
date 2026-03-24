@@ -1,15 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
-using TUnit.Mocks;
 using Upgradarr.Application.Services;
 using Upgradarr.Data;
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
-using static TUnit.Mocks.Arguments.Arg;
 
 [assembly: GenerateMock(typeof(IUpgradeManager))]
 
