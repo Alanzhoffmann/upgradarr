@@ -39,6 +39,9 @@ public static class ServiceCollectionExtensions
             services.AddKeyedScoped<IQueueManager>(RecordSource.Radarr, (sp, _) => sp.GetRequiredService<RadarrClient>());
             services.AddTransient(sp => sp.GetRequiredKeyedService<IQueueManager>(RecordSource.Radarr));
 
+            services.AddKeyedScoped<IUpgradeManager>(RecordSource.Radarr, (sp, _) => sp.GetRequiredService<RadarrClient>());
+            services.AddTransient(sp => sp.GetRequiredKeyedService<IUpgradeManager>(RecordSource.Radarr));
+
             return services;
         }
     }
