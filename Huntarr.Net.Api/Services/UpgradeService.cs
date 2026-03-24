@@ -128,8 +128,8 @@ public class UpgradeService
 
     private async Task<bool> HasSeriesOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
-        var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, cancellationToken: cancellationToken);
-        if (queue.Records?.Any(q => q.SeriesId == state.ItemId) ?? false)
+        var queue = _sonarrClient.GetAllQueueItems(cancellationToken);
+        if (await queue.AnyAsync(q => q is SonarrQueueResource sonarrResource && sonarrResource.SeriesId == state.ItemId, cancellationToken: cancellationToken))
         {
             _logger.LogSeriesHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
             return true;
@@ -140,8 +140,8 @@ public class UpgradeService
 
     private async Task<bool> HasMovieOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
-        var queue = await _radarrClient.GetQueueAsync(pageSize: 1000, cancellationToken: cancellationToken);
-        if (queue.Records?.Any(q => q.MovieId == state.ItemId) ?? false)
+        var queue = _radarrClient.GetAllQueueItems(cancellationToken);
+        if (await queue.AnyAsync(q => q is RadarrQueueResource radarrResource && radarrResource.MovieId == state.ItemId, cancellationToken: cancellationToken))
         {
             _logger.LogMovieIsDownloading(state.Title ?? "Unknown", state.ItemId);
             return true;
@@ -155,8 +155,16 @@ public class UpgradeService
         if (!state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue)
             return false;
 
-        var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, includeEpisode: true, cancellationToken: cancellationToken);
-        if (queue.Records?.Any(q => q.SeriesId == state.ParentSeriesId.Value && q.Episode?.SeasonNumber == state.SeasonNumber.Value) ?? false)
+        var queue = _sonarrClient.GetAllQueueItems(cancellationToken);
+        if (
+            await queue.AnyAsync(
+                q =>
+                    q is SonarrQueueResource sonarrResource
+                    && sonarrResource.SeriesId == state.ParentSeriesId.Value
+                    && sonarrResource.Episode?.SeasonNumber == state.SeasonNumber.Value,
+                cancellationToken: cancellationToken
+            )
+        )
         {
             _logger.LogSeasonHasOngoingDownloads(state.SeasonNumber.Value, state.Title ?? "Unknown", state.ParentSeriesId.Value);
             return true;
@@ -170,8 +178,10 @@ public class UpgradeService
         if (!state.ParentSeriesId.HasValue || !state.SeasonNumber.HasValue || !state.EpisodeNumber.HasValue)
             return false;
 
-        var queue = await _sonarrClient.GetQueueAsync(pageSize: 1000, includeEpisode: true, cancellationToken: cancellationToken);
-        if (queue.Records?.Any(q => q.EpisodeId == state.ItemId) ?? false)
+        var queue = _sonarrClient.GetAllQueueItems(cancellationToken);
+        if (
+            await queue.AnyAsync(q => q is SonarrQueueResource sonarrResource && sonarrResource.EpisodeId == state.ItemId, cancellationToken: cancellationToken)
+        )
         {
             _logger.LogEpisodeIsDownloading(state.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
             return true;

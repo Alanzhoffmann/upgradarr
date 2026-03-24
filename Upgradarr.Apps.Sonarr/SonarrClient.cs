@@ -70,10 +70,6 @@ public class SonarrClient : IQueueManager
     public async Task<EpisodeResource?> GetEpisodeByIdAsync(int id, CancellationToken cancellationToken = default) =>
         await _client.GetFromJsonAsync($"/api/v3/episode/{id}", SonarrClientJsonSerializerContext.Default.EpisodeResource, cancellationToken);
 
-    public async Task<PagingResource<SonarrQueueResource>> GetQueueAsync(CancellationToken cancellationToken = default) =>
-        await _client.GetFromJsonAsync("/api/v3/queue", SonarrClientJsonSerializerContext.Default.PagingResourceSonarrQueueResource, cancellationToken)
-        ?? new();
-
     public async Task<PagingResource<SonarrQueueResource>> GetQueueAsync(
         int page = 1,
         int pageSize = 10,
@@ -222,35 +218,44 @@ public class SonarrClient : IQueueManager
 
     public async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var items = await GetQueueAsync(cancellationToken);
-        foreach (var item in items.Records)
+        const int PageSize = 100;
+
+        var page = 1;
+        PagingResource<SonarrQueueResource> items;
+        do
         {
-            if (cancellationToken.IsCancellationRequested)
+            items = await GetQueueAsync(page, PageSize, includeSeries: true, includeEpisode: true, cancellationToken: cancellationToken);
+            foreach (var item in items.Records)
             {
-                yield break;
-            }
-
-            if (item.DownloadId is null)
-            {
-                // Skip items with null DownloadId, as these cannot be tracked for cleanup
-                continue;
-            }
-
-            if (item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.EpisodeId.HasValue)
-            {
-                var episode = await GetEpisodeByIdAsync(item.EpisodeId.Value, cancellationToken);
-                if (episode is not null)
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    yield return item with
-                    {
-                        Title = $"{episode.Series?.Title} {episode.SeasonNumber}x{episode.EpisodeNumber:00} - {episode.Title}",
-                    };
+                    yield break;
+                }
+
+                if (item.DownloadId is null)
+                {
+                    // Skip items with null DownloadId, as these cannot be tracked for cleanup
                     continue;
                 }
+
+                if (item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.EpisodeId.HasValue)
+                {
+                    var episode = await GetEpisodeByIdAsync(item.EpisodeId.Value, cancellationToken);
+                    if (episode is not null)
+                    {
+                        yield return item with
+                        {
+                            Title = $"{episode.Series?.Title} {episode.SeasonNumber}x{episode.EpisodeNumber:00} - {episode.Title}",
+                        };
+                        continue;
+                    }
+                }
+
+                yield return item;
             }
 
-            yield return item;
-        }
+            page++;
+        } while (items.Records?.Count > 0);
     }
 
     public async ValueTask<(bool ShouldRemove, int DownloadedScore)> ShouldRemoveImmediately(IQueueResource item, CancellationToken cancellationToken = default)

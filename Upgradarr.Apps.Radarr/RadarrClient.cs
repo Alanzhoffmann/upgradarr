@@ -143,35 +143,44 @@ public class RadarrClient : IQueueManager
 
     public async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var items = await GetQueueAsync(cancellationToken: cancellationToken);
-        foreach (var item in items.Records)
+        const int PageSize = 100;
+        
+        var page = 1;
+        PagingResource<RadarrQueueResource> items;
+        do
         {
-            if (cancellationToken.IsCancellationRequested)
+            items = await GetQueueAsync(page, PageSize, cancellationToken: cancellationToken);
+            foreach (var item in items.Records)
             {
-                yield break;
-            }
-
-            if (item.DownloadId is null)
-            {
-                // Skip items with null DownloadId, as these cannot be tracked for cleanup
-                continue;
-            }
-
-            if (item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.MovieId.HasValue)
-            {
-                var movie = await GetMovieByIdAsync(item.MovieId.Value, cancellationToken);
-                if (movie is not null)
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    yield return item with
-                    {
-                        Title = movie.Title,
-                    };
+                    yield break;
+                }
+
+                if (item.DownloadId is null)
+                {
+                    // Skip items with null DownloadId, as these cannot be tracked for cleanup
                     continue;
                 }
+
+                if (item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.MovieId.HasValue)
+                {
+                    var movie = await GetMovieByIdAsync(item.MovieId.Value, cancellationToken);
+                    if (movie is not null)
+                    {
+                        yield return item with
+                        {
+                            Title = movie.Title,
+                        };
+                        continue;
+                    }
+                }
+
+                yield return item;
             }
 
-            yield return item;
-        }
+            page++;
+        } while (items.Records?.Count > 0);
     }
 
     public async ValueTask<(bool ShouldRemove, int DownloadedScore)> ShouldRemoveImmediately(IQueueResource item, CancellationToken cancellationToken = default)
