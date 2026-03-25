@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Upgradarr.Application.Services;
 using Upgradarr.Data;
 using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Entities;
@@ -10,7 +9,7 @@ using Upgradarr.Domain.Interfaces;
 [assembly: GenerateMock(typeof(IUpgradeManager))]
 [assembly: GenerateMock(typeof(IMigrationState))]
 
-namespace Upgradarr.Application.Tests.Services;
+namespace Upgradarr.Application.Services;
 
 public class UpgradeServiceTests
 {
@@ -26,59 +25,6 @@ public class UpgradeServiceTests
         {
             yield return state;
         }
-    }
-
-    [Test]
-    public async Task InitializeUpgradeStatesAsync_CallsAllManagersAndSavesToDb()
-    {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        var timeProvider = TimeProvider.System;
-        var logger = NullLogger<UpgradeService>.Instance;
-
-        var manager1 = Mock.Of<IUpgradeManager>();
-        manager1
-            .BuildQueueItemsAsync(Any<CancellationToken>())
-            .Returns(
-                AsAsyncEnumerable(
-                    new UpgradeState
-                    {
-                        ItemType = ItemType.Series,
-                        ItemId = 1,
-                        SearchState = SearchState.Pending,
-                        IsMonitored = true,
-                    }
-                )
-            );
-
-        var manager2 = Mock.Of<IUpgradeManager>();
-        manager2
-            .BuildQueueItemsAsync(Any<CancellationToken>())
-            .Returns(
-                AsAsyncEnumerable(
-                    new UpgradeState
-                    {
-                        ItemType = ItemType.Movie,
-                        ItemId = 2,
-                        SearchState = SearchState.Pending,
-                        IsMonitored = true,
-                    }
-                )
-            );
-
-        var migrationState = Mock.Of<IMigrationState>();
-        migrationState.IsDone.Returns(true);
-
-        var service = new UpgradeService([manager1.Object, manager2.Object], dbContext, logger, timeProvider, migrationState.Object);
-
-        // Act
-        await service.InitializeUpgradeStatesAsync();
-
-        // Assert
-        var states = await dbContext.UpgradeStates.ToListAsync();
-        await Assert.That(states.Count).IsEqualTo(2);
-        await Assert.That(states.Any(s => s.ItemType == ItemType.Series && s.ItemId == 1)).IsTrue();
-        await Assert.That(states.Any(s => s.ItemType == ItemType.Movie && s.ItemId == 2)).IsTrue();
     }
 
     [Test]
@@ -181,53 +127,5 @@ public class UpgradeServiceTests
 
         var updatedState = await dbContext.UpgradeStates.FirstAsync();
         await Assert.That(updatedState.SearchState).IsEqualTo(SearchState.Pending);
-    }
-
-    [Test]
-    public async Task InitializeUpgradeStatesAsync_AbortsIfQueueAlreadyPopulated()
-    {
-        await using var dbContext = CreateDbContext();
-        var timeProvider = TimeProvider.System;
-        var logger = NullLogger<UpgradeService>.Instance;
-
-        dbContext.UpgradeStates.Add(
-            new UpgradeState
-            {
-                ItemId = 10,
-                ItemType = ItemType.Movie,
-                SearchState = SearchState.Pending,
-            }
-        );
-        await dbContext.SaveChangesAsync();
-
-        var manager = Mock.Of<IUpgradeManager>();
-        manager
-            .BuildQueueItemsAsync(Any<CancellationToken>())
-            .Returns(
-                AsAsyncEnumerable(
-                    new UpgradeState
-                    {
-                        ItemId = 10,
-                        ItemType = ItemType.Movie,
-                        SearchState = SearchState.Pending,
-                    },
-                    new UpgradeState
-                    {
-                        ItemId = 11,
-                        ItemType = ItemType.Movie,
-                        SearchState = SearchState.Pending,
-                    }
-                )
-            );
-
-        var migrationState = Mock.Of<IMigrationState>();
-        migrationState.IsDone.Returns(true);
-
-        var service = new UpgradeService([manager.Object], dbContext, logger, timeProvider, migrationState.Object);
-
-        await service.InitializeUpgradeStatesAsync();
-
-        var states = await dbContext.UpgradeStates.ToListAsync();
-        await Assert.That(states.Count).IsEqualTo(1);
     }
 }

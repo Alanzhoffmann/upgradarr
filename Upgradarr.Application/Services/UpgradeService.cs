@@ -170,37 +170,6 @@ internal class UpgradeService : IUpgradeService
         }
     }
 
-    public async Task InitializeUpgradeStatesAsync(CancellationToken cancellationToken = default)
-    {
-        if (!_migrationState.IsDone)
-            return;
-
-        if (await _dbContext.UpgradeStates.AnyAsync(cancellationToken))
-            return;
-
-        try
-        {
-            var queueItems = new List<UpgradeState>();
-            foreach (var manager in _upgradeManagers)
-            {
-                await foreach (var item in manager.BuildQueueItemsAsync(cancellationToken))
-                {
-                    queueItems.Add(item);
-                }
-            }
-
-            var shuffledQueue = ShuffleAndAssignPositions(queueItems);
-
-            _dbContext.UpgradeStates.AddRange(shuffledQueue);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-            _logger.LogInitializedUpgradeStates(queueItems.Count(i => i.ItemType == ItemType.Series), queueItems.Count(i => i.ItemType == ItemType.Movie));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogErrorInitializingUpgradeStates(ex);
-        }
-    }
-
     private static List<UpgradeState> ShuffleAndAssignPositions(List<UpgradeState> items)
     {
         var shuffled = ShuffleQueue(items);

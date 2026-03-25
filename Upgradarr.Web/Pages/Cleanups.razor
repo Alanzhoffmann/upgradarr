@@ -1,0 +1,45 @@
+@page "/cleanups"
+@using Upgradarr.Contracts
+@inject HttpClient Http
+
+<PageTitle>Cleanups</PageTitle>
+
+<h1>Cleanups</h1>
+
+@if (cleanups == null)
+{
+    <FluentProgressRing />
+}
+else
+{
+    @* Add a simple run cleanup button *@
+    <FluentButton Appearance="Appearance.Accent" OnClick="RunCleanup">Run Cleanup Now</FluentButton>
+    <br/><br/>
+    <FluentDataGrid Items="@cleanups.AsQueryable()" Style="width: 100%;" GridTemplateColumns="1fr 2fr 1fr 1fr 1fr">
+        <PropertyColumn Property="@(p => p.Title ?? "Unknown")" Sortable="true" />
+        <PropertyColumn Property="@(p => p.DownloadId)" Sortable="true" />
+        <PropertyColumn Property="@(p => p.Source)" Sortable="true" />
+        <PropertyColumn Property="@(p => p.Added)" Sortable="true" Format="yyyy-MM-dd HH:mm" />
+        <PropertyColumn Property="@(p => p.RemoveAt)" Sortable="true" Format="yyyy-MM-dd HH:mm" />
+    </FluentDataGrid>
+}
+
+@code {
+    private List<QueueRecordDto>? cleanups;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        cleanups = await Http.GetFromJsonAsync<List<QueueRecordDto>>("api/cleanup");
+    }
+
+    private async Task RunCleanup()
+    {
+        await Http.GetAsync("api/cleanup/run");
+        await LoadData();
+    }
+}

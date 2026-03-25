@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Contracts;
 using Upgradarr.Data;
 using Upgradarr.Domain.Enums;
-using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Api.Endpoints;
 
@@ -16,20 +16,37 @@ public static class UpgradeEndpoints
             upgradeApi.MapGet("/", GetUpgradeStates).WithName("GetUpgradeStates");
 
             upgradeApi.MapGet("/pending", GetPendingUpgradeStates).WithName("GetPendingUpgradeStates");
-
-            upgradeApi.MapPost("/reset", ResetUpgradeStates).WithName("ResetUpgradeStates");
         }
 
         private static async Task<IResult> GetUpgradeStates(AppDbContext dbContext) =>
-            Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).ToListAsync());
+            Results.Ok(
+                await dbContext
+                    .UpgradeStates.OrderBy(u => u.QueuePosition)
+                    .Select(u => new UpgradeStateDto
+                    {
+                        Id = u.Id,
+                        Title = u.Title,
+                        ItemType = u.ItemType.ToString(),
+                        SearchState = u.SearchState.ToString(),
+                        QueuePosition = u.QueuePosition,
+                    })
+                    .ToListAsync()
+            );
 
         private static async Task<IResult> GetPendingUpgradeStates(AppDbContext dbContext) =>
-            Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).Where(u => u.SearchState == SearchState.Pending).ToListAsync());
-
-        private static async Task<IResult> ResetUpgradeStates(IUpgradeService upgradeService, CancellationToken cancellationToken)
-        {
-            await upgradeService.InitializeUpgradeStatesAsync(cancellationToken);
-            return Results.Ok("Upgrade states reinitialized");
-        }
+            Results.Ok(
+                await dbContext
+                    .UpgradeStates.OrderBy(u => u.QueuePosition)
+                    .Where(u => u.SearchState == SearchState.Pending)
+                    .Select(u => new UpgradeStateDto
+                    {
+                        Id = u.Id,
+                        Title = u.Title,
+                        ItemType = u.ItemType.ToString(),
+                        SearchState = u.SearchState.ToString(),
+                        QueuePosition = u.QueuePosition,
+                    })
+                    .ToListAsync()
+            );
     }
 }

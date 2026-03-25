@@ -1,0 +1,40 @@
+@page "/upgrades"
+@using Upgradarr.Contracts
+@inject HttpClient Http
+
+<PageTitle>Upgrades</PageTitle>
+
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <h1>Upgrades</h1>
+    <FluentSwitch @bind-Value="ShowPendingOnly" @bind-Value:after="LoadData">Show Pending Only</FluentSwitch>
+</div>
+
+@if (upgrades == null)
+{
+    <FluentProgressRing />
+}
+else
+{
+    <FluentDataGrid Items="@upgrades.AsQueryable()" Style="width: 100%;" GridTemplateColumns="1fr 1fr 1fr 1fr">
+        <PropertyColumn Property="@(p => p.Title ?? "Unknown")" Sortable="true" />
+        <PropertyColumn Property="@(p => p.ItemType)" Sortable="true" />
+        <PropertyColumn Property="@(p => p.SearchState)" Sortable="true" />
+        <PropertyColumn Property="@(p => p.QueuePosition)" Sortable="true" />
+    </FluentDataGrid>
+}
+
+@code {
+    private List<UpgradeStateDto>? upgrades;
+    private bool ShowPendingOnly = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var endpoint = ShowPendingOnly ? "api/upgrade/pending" : "api/upgrade";
+        upgrades = await Http.GetFromJsonAsync<List<UpgradeStateDto>>(endpoint);
+    }
+}

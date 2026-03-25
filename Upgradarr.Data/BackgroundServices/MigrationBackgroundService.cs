@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Upgradarr.Data;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Upgradarr.Data.Interfaces;
 
-namespace Upgradarr.Api.BackgroundServices;
+namespace Upgradarr.Data.BackgroundServices;
 
 public class MigrationBackgroundService : BackgroundService
 {
@@ -31,7 +33,8 @@ public class MigrationBackgroundService : BackgroundService
                 }
             }
             catch (Exception)
-            { /* Ignored, let EF fail if inaccessible */
+            {
+                // Ignored, let EF fail if inaccessible
             }
 
             using var scope = _serviceProvider.CreateScope();

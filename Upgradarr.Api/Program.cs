@@ -5,7 +5,7 @@ using Upgradarr.Api.Middleware;
 using Upgradarr.Application.Extensions;
 using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Sonarr.Extensions;
-using Upgradarr.Domain.Entities;
+using Upgradarr.Contracts;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -27,7 +27,6 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddHostedService<UpgradeBackgroundService>();
 builder.Services.AddHostedService<CleanupBackgroundService>();
-builder.Services.AddHostedService<MigrationBackgroundService>();
 
 builder.Services.AddApplicationServices();
 
@@ -35,6 +34,10 @@ builder.Services.AddRadarr();
 builder.Services.AddSonarr();
 
 var app = builder.Build();
+
+// Host the Blazor WebAssembly application
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
 
 app.UseMiddleware<MigrationMiddleware>();
 
@@ -46,10 +49,13 @@ if (app.Environment.IsDevelopment())
 app.MapCleanupEndpoints();
 app.MapUpgradeEndpoints();
 
+// Point unmatched requests to the Blazor index
+app.MapFallbackToFile("index.html");
+
 app.Run();
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = true)]
-[JsonSerializable(typeof(List<QueueRecord>))]
-[JsonSerializable(typeof(UpgradeState))]
-[JsonSerializable(typeof(List<UpgradeState>))]
+[JsonSerializable(typeof(List<QueueRecordDto>))]
+[JsonSerializable(typeof(UpgradeStateDto))]
+[JsonSerializable(typeof(List<UpgradeStateDto>))]
 internal partial class AppJsonSerializerContext : JsonSerializerContext { }

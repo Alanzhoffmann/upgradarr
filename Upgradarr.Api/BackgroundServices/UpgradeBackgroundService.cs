@@ -27,7 +27,6 @@ public class UpgradeBackgroundService : BackgroundService
                 {
                     using var scope = _serviceProvider.CreateScope();
                     var upgradeService = scope.ServiceProvider.GetRequiredService<IUpgradeService>();
-                    await upgradeService.InitializeUpgradeStatesAsync(stoppingToken);
                     await upgradeService.ProcessUpgradeAsync(stoppingToken);
                 }
                 catch (Exception ex)

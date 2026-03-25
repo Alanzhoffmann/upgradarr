@@ -1,0 +1,13 @@
+@using Microsoft.FluentUI.AspNetCore.Components
+
+<div class="navmenu">
+    <input type="checkbox" title="Menu expand/collapse toggle" id="navmenu-toggle" class="navmenu-icon" />
+    <label for="navmenu-toggle" class="navmenu-icon"><FluentIcon Value="@(new Icons.Regular.Size20.Navigation())" Color="Color.Fill" /></label>
+    <nav class="sitenav" aria-labelledby="main-menu" onclick="document.getElementById('navmenu-toggle').click();">
+        <FluentNavMenu Id="main-menu" Width="250" Title="Navigation menu" CustomToggle="true">
+            <FluentNavLink Href="/" Match="NavLinkMatch.All" Icon="@(new Icons.Regular.Size20.Home())" IconColor="Color.Accent">Home</FluentNavLink>
+            <FluentNavLink Href="/upgrades" Icon="@(new Icons.Regular.Size20.ArrowUp())" IconColor="Color.Accent">Upgrades</FluentNavLink>
+            <FluentNavLink Href="/cleanups" Icon="@(new Icons.Regular.Size20.Delete())" IconColor="Color.Accent">Cleanups</FluentNavLink>
+        </FluentNavMenu>
+    </nav>
+</div>
