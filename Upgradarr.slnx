@@ -1,13 +1,21 @@
 <Solution>
-  <Project Path="Upgradarr.Apps.Sonarr/Upgradarr.Apps.Sonarr.csproj" />
-  <Project Path="Upgradarr.Apps/Upgradarr.Apps.csproj" />
-  <Project Path="Upgradarr.Api/Upgradarr.Api.csproj" />
-  <Project Path="Upgradarr.Application/Upgradarr.Application.csproj" />
-  <Project Path="Upgradarr.Apps.Radarr/Upgradarr.Apps.Radarr.csproj" />
-  <Project Path="Upgradarr.Data/Upgradarr.Data.csproj" />
-  <Project Path="Upgradarr.Domain/Upgradarr.Domain.csproj" />
-  <Project Path="Upgradarr.Application.Tests/Upgradarr.Application.Tests.csproj" />
-  <Project Path="Upgradarr.Web/Upgradarr.Web.csproj" />
-  <Project Path="Upgradarr.Api.Tests/Upgradarr.Api.Tests.csproj" />
-  <Project Path="Upgradarr.Contracts/Upgradarr.Contracts.csproj" />
+  <Folder Name="/0 - Presentation/">
+    <Project Path="Upgradarr.Api/Upgradarr.Api.csproj" />
+    <Project Path="Upgradarr.Contracts/Upgradarr.Contracts.csproj" />
+    <Project Path="Upgradarr.Web/Upgradarr.Web.csproj" />
+  </Folder>
+  <Folder Name="/1 - Infrastructure/">
+    <Project Path="Upgradarr.Domain/Upgradarr.Domain.csproj" />
+    <Project Path="Upgradarr.Application/Upgradarr.Application.csproj" />
+    <Project Path="Upgradarr.Data/Upgradarr.Data.csproj" />
+  </Folder>
+  <Folder Name="/2 - Integrations/">
+    <Project Path="Upgradarr.Integrations/Upgradarr.Integrations.csproj" />
+    <Project Path="Upgradarr.Integrations.Radarr/Upgradarr.Integrations.Radarr.csproj" />
+    <Project Path="Upgradarr.Integrations.Sonarr/Upgradarr.Integrations.Sonarr.csproj" />
+  </Folder>
+  <Folder Name="/3 - Tests/">
+    <Project Path="Upgradarr.Application.Tests/Upgradarr.Application.Tests.csproj" />
+    <Project Path="Upgradarr.Api.Tests/Upgradarr.Api.Tests.csproj" />
+  </Folder>
 </Solution>

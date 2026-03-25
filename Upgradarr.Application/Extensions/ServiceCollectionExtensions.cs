@@ -5,6 +5,8 @@ using Upgradarr.Application.Options;
 using Upgradarr.Application.Services;
 using Upgradarr.Data.Extensions;
 using Upgradarr.Domain.Interfaces;
+using Upgradarr.Integrations.Radarr.Extensions;
+using Upgradarr.Integrations.Sonarr.Extensions;
 
 namespace Upgradarr.Application.Extensions;
 
@@ -28,7 +30,10 @@ public static class ServiceCollectionExtensions
                     }
                 );
 
-            services.AddUpgradarrData();
+            services.AddData();
+
+            services.AddRadarr();
+            services.AddSonarr();
 
             return services;
         }

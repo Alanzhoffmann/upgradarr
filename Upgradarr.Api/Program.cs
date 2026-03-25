@@ -3,8 +3,6 @@ using Upgradarr.Api.BackgroundServices;
 using Upgradarr.Api.Endpoints;
 using Upgradarr.Api.Middleware;
 using Upgradarr.Application.Extensions;
-using Upgradarr.Apps.Radarr.Extensions;
-using Upgradarr.Apps.Sonarr.Extensions;
 using Upgradarr.Contracts;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -30,13 +28,9 @@ builder.Services.AddHostedService<CleanupBackgroundService>();
 
 builder.Services.AddApplicationServices();
 
-builder.Services.AddRadarr();
-builder.Services.AddSonarr();
-
 var app = builder.Build();
 
-// Host the Blazor WebAssembly application
-app.UseBlazorFrameworkFiles();
+app.UseBlazorFrameworkFiles(); 
 app.UseStaticFiles();
 
 app.UseMiddleware<MigrationMiddleware>();
@@ -46,8 +40,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.MapCleanupEndpoints();
-app.MapUpgradeEndpoints();
+var apiGroup = app.MapGroup("/api");
+apiGroup.MapCleanupEndpoints();
+apiGroup.MapUpgradeEndpoints();
 
 // Point unmatched requests to the Blazor index
 app.MapFallbackToFile("index.html");
