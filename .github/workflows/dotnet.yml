@@ -37,6 +37,9 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
     
+    - name: Install Playwright Browsers
+      run: pwsh Upgradarr.Web.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps
+    
     - name: Test
       run: dotnet test --no-build --verbosity normal
     
