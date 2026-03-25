@@ -30,9 +30,7 @@ builder.Services.AddApplicationServices();
 
 var app = builder.Build();
 
-// Host the Blazor WebAssembly application
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+app.MapStaticAssets();
 
 app.UseMiddleware<MigrationMiddleware>();
 
