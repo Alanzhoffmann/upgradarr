@@ -9,6 +9,5 @@
   <Project Path="Upgradarr.Application.Tests/Upgradarr.Application.Tests.csproj" />
   <Project Path="Upgradarr.Web/Upgradarr.Web.csproj" />
   <Project Path="Upgradarr.Api.Tests/Upgradarr.Api.Tests.csproj" />
-  <Project Path="Upgradarr.Web.Tests/Upgradarr.Web.Tests.csproj" />
   <Project Path="Upgradarr.Contracts/Upgradarr.Contracts.csproj" />
 </Solution>
