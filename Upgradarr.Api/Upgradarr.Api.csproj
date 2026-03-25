@@ -19,8 +19,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../Upgradarr.Application/Upgradarr.Application.csproj" />
-    <ProjectReference Include="../Upgradarr.Integrations.Radarr/Upgradarr.Integrations.Radarr.csproj" />
-    <ProjectReference Include="../Upgradarr.Integrations.Sonarr/Upgradarr.Integrations.Sonarr.csproj" />
     <ProjectReference Include="../Upgradarr.Contracts/Upgradarr.Contracts.csproj" />
     <ProjectReference Include="../Upgradarr.Web/Upgradarr.Web.csproj" />
   </ItemGroup>

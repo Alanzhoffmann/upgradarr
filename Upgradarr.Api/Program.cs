@@ -4,8 +4,6 @@ using Upgradarr.Api.Endpoints;
 using Upgradarr.Api.Middleware;
 using Upgradarr.Application.Extensions;
 using Upgradarr.Contracts;
-using Upgradarr.Integrations.Radarr.Extensions;
-using Upgradarr.Integrations.Sonarr.Extensions;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -29,9 +27,6 @@ builder.Services.AddHostedService<UpgradeBackgroundService>();
 builder.Services.AddHostedService<CleanupBackgroundService>();
 
 builder.Services.AddApplicationServices();
-
-builder.Services.AddRadarr();
-builder.Services.AddSonarr();
 
 var app = builder.Build();
 
