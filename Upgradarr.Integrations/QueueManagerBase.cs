@@ -56,7 +56,7 @@ public abstract class QueueManagerBase<TQueueResource>
         CancellationToken cancellationToken
     );
 
-    protected abstract Task<IEnumerable<ItemToQueue>> GetRequeueItemsAsync(int itemId, CancellationToken cancellationToken);
+    protected abstract ValueTask<IEnumerable<ItemToQueue>> GetRequeueItemsAsync(int itemId, CancellationToken cancellationToken);
 
     public async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -88,8 +88,6 @@ public abstract class QueueManagerBase<TQueueResource>
 
     protected abstract Task<PagingResource<TQueueResource>> GetQueuePageAsync(int page, int pageSize, CancellationToken cancellationToken);
 
-    protected virtual Task<IQueueResource> ProcessQueueItemForYieldAsync(TQueueResource item, CancellationToken cancellationToken)
-    {
-        return Task.FromResult<IQueueResource>(item);
-    }
+    protected virtual ValueTask<TQueueResource> ProcessQueueItemForYieldAsync(TQueueResource item, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(item);
 }

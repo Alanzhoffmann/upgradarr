@@ -468,9 +468,8 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
         return await response.Content.ReadFromJsonAsync(SonarrClientJsonSerializerContext.Default.CommandResource, cancellationToken);
     }
 
-    protected override async Task<IEnumerable<ItemToQueue>> GetRequeueItemsAsync(int itemId, CancellationToken cancellationToken)
+    protected override async ValueTask<IEnumerable<ItemToQueue>> GetRequeueItemsAsync(int itemId, CancellationToken cancellationToken)
     {
-        var itemsToRequeue = new List<ItemToQueue>();
         try
         {
             var episodes = await GetEpisodesAsync(episodeIds: [itemId], cancellationToken: cancellationToken);
@@ -482,17 +481,21 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
                 var series = await GetSeriesByIdAsync(seriesId, cancellationToken: cancellationToken);
                 if (series is not null && series.Monitored)
                 {
-                    itemsToRequeue.Add(new(ItemType.Series, seriesId));
-                    itemsToRequeue.Add(new(ItemType.Season, episode.SeasonNumber, seriesId, episode.SeasonNumber));
-                    itemsToRequeue.Add(new(ItemType.Episode, episode.Id, seriesId, episode.SeasonNumber, episode.EpisodeNumber));
+                    return
+                    [
+                        new(ItemType.Series, seriesId),
+                        new(ItemType.Season, episode.SeasonNumber, seriesId, episode.SeasonNumber),
+                        new(ItemType.Episode, episode.Id, seriesId, episode.SeasonNumber, episode.EpisodeNumber),
+                    ];
                 }
             }
         }
         catch
         {
-            itemsToRequeue.Add(new(ItemType.Episode, itemId));
+            return [new(ItemType.Episode, itemId)];
         }
-        return itemsToRequeue;
+
+        return [];
     }
 
     protected override Task<PagingResource<SonarrQueueResource>> GetQueuePageAsync(int page, int pageSize, CancellationToken cancellationToken)
@@ -500,7 +503,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
         return GetQueueAsync(page, pageSize, includeSeries: true, includeEpisode: true, cancellationToken: cancellationToken);
     }
 
-    protected override async Task<IQueueResource> ProcessQueueItemForYieldAsync(SonarrQueueResource item, CancellationToken cancellationToken)
+    protected override async ValueTask<SonarrQueueResource> ProcessQueueItemForYieldAsync(SonarrQueueResource item, CancellationToken cancellationToken)
     {
         if (item.DownloadId != null && item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.EpisodeId.HasValue)
         {
@@ -510,6 +513,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
                 return item with { Title = $"{episode.Series?.Title} {episode.SeasonNumber}x{episode.EpisodeNumber:00} - {episode.Title}" };
             }
         }
+
         return item;
     }
 
