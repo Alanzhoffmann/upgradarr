@@ -40,8 +40,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.MapCleanupEndpoints();
-app.MapUpgradeEndpoints();
+var apiGroup = app.MapGroup("/api");
+apiGroup.MapCleanupEndpoints();
+apiGroup.MapUpgradeEndpoints();
 
 // Point unmatched requests to the Blazor index
 app.MapFallbackToFile("index.html");
