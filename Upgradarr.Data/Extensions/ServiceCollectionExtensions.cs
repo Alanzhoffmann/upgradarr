@@ -13,7 +13,7 @@ public static class ServiceCollectionExtensions
 {
     extension(IServiceCollection services)
     {
-        public IServiceCollection AddUpgradarrData()
+        public IServiceCollection AddData()
         {
             services.AddHostedService<MigrationBackgroundService>();
             services.AddSingleton<IMigrationState, MigrationState>();

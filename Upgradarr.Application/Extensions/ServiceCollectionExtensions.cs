@@ -30,7 +30,7 @@ public static class ServiceCollectionExtensions
                     }
                 );
 
-            services.AddUpgradarrData();
+            services.AddData();
 
             services.AddRadarr();
             services.AddSonarr();
