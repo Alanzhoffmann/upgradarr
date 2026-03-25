@@ -1,7 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+using Upgradarr.Application.Interfaces;
 using Upgradarr.Application.Services;
-using Upgradarr.Contracts;
-using Upgradarr.Data;
 
 namespace Upgradarr.Api.Endpoints;
 
@@ -13,29 +11,24 @@ public static class CleanupEndpoints
         {
             var cleanupApi = routes.MapGroup("/cleanup");
 
-            cleanupApi.MapGet("/", GetTrackedDownloads).WithName("GetTrackedDownloads");
+            cleanupApi
+                .MapGet(
+                    "/",
+                    async (IQueryService queryService, CancellationToken cancellationToken) =>
+                        TypedResults.Ok(await queryService.GetTrackedDownloads(cancellationToken))
+                )
+                .WithName("GetTrackedDownloads");
 
-            cleanupApi.MapGet("/run", RunCleanup).WithName("RunCleanup");
-        }
-
-        private static async Task<IResult> GetTrackedDownloads(AppDbContext dbContext) =>
-            Results.Ok(
-                await dbContext
-                    .TrackedDownloads.Select(q => new QueueRecordDto
+            cleanupApi
+                .MapGet(
+                    "/run",
+                    async (CleanupService cleanupService, CancellationToken cancellationToken) =>
                     {
-                        DownloadId = q.DownloadId,
-                        Title = q.Title,
-                        Source = q.Source.ToString(),
-                        Added = q.Added,
-                        RemoveAt = q.RemoveAt,
-                    })
-                    .ToListAsync()
-            );
-
-        private static async Task<IResult> RunCleanup(CleanupService cleanupService, CancellationToken cancellationToken)
-        {
-            await cleanupService.PerformCleanupAsync(cancellationToken);
-            return Results.Ok();
+                        await cleanupService.PerformCleanupAsync(cancellationToken);
+                        return Results.Ok();
+                    }
+                )
+                .WithName("RunCleanup");
         }
     }
 }

@@ -112,7 +112,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
     public async Task<bool> HasOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
         var queue = GetAllQueueItems(cancellationToken);
-        if (await queue.AnyAsync(q => q is RadarrQueueResource radarrResource && radarrResource.MovieId == state.ItemId, cancellationToken: cancellationToken))
+        if (await queue.OfType<RadarrQueueResource>().AnyAsync(q => q.MovieId == state.ItemId, cancellationToken: cancellationToken))
         {
             _logger.LogMovieIsDownloading(state.Title ?? "Unknown", state.ItemId);
             return true;
@@ -220,9 +220,9 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         return await response.Content.ReadFromJsonAsync(RadarrClientJsonSerializerContext.Default.CommandResource, cancellationToken);
     }
 
-    protected override Task<IEnumerable<ItemToQueue>> GetRequeueItemsAsync(int itemId, CancellationToken cancellationToken)
+    protected override ValueTask<IEnumerable<ItemToQueue>> GetRequeueItemsAsync(int itemId, CancellationToken cancellationToken)
     {
-        return Task.FromResult<IEnumerable<ItemToQueue>>([new(ItemType.Movie, itemId)]);
+        return ValueTask.FromResult<IEnumerable<ItemToQueue>>([new(ItemType.Movie, itemId)]);
     }
 
     protected override Task<PagingResource<RadarrQueueResource>> GetQueuePageAsync(int page, int pageSize, CancellationToken cancellationToken)
@@ -230,7 +230,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         return GetQueueAsync(page, pageSize, cancellationToken: cancellationToken);
     }
 
-    protected override async Task<IQueueResource> ProcessQueueItemForYieldAsync(RadarrQueueResource item, CancellationToken cancellationToken)
+    protected override async ValueTask<RadarrQueueResource> ProcessQueueItemForYieldAsync(RadarrQueueResource item, CancellationToken cancellationToken)
     {
         if (item.DownloadId != null && item.DownloadId.Equals(item.Title, StringComparison.OrdinalIgnoreCase) && item.MovieId.HasValue)
         {
@@ -240,6 +240,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
                 return item with { Title = movie.Title };
             }
         }
+
         return item;
     }
 
