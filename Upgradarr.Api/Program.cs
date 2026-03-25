@@ -35,6 +35,10 @@ builder.Services.AddSonarr();
 
 var app = builder.Build();
 
+// Host the Blazor WebAssembly application
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
 app.UseMiddleware<MigrationMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -44,6 +48,9 @@ if (app.Environment.IsDevelopment())
 
 app.MapCleanupEndpoints();
 app.MapUpgradeEndpoints();
+
+// Point unmatched requests to the Blazor index
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
