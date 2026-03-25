@@ -6,6 +6,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- <PublishAot>true</PublishAot> -->
     <ContainerRepository>upgradarr</ContainerRepository>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
   </PropertyGroup>
 
   <ItemGroup>
