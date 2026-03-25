@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Upgradarr.Apps.Sonarr.Options;
@@ -14,7 +15,14 @@ public static class ServiceCollectionExtensions
         {
             services.AddHybridCache();
 
-            services.AddOptions<SonarrOptions>().BindConfiguration(SonarrOptions.SectionName);
+            services
+                .AddOptions<SonarrOptions>()
+                .Configure(
+                    (SonarrOptions opt, IServiceProvider sp) =>
+                    {
+                        sp.GetRequiredService<IConfiguration>().GetSection(SonarrOptions.SectionName).Bind(opt);
+                    }
+                );
 
             services
                 .AddHttpClient<SonarrClient>()
