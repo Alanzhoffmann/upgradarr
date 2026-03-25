@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Upgradarr.Apps.Radarr/Upgradarr.Apps.Radarr.csproj" />
-    <ProjectReference Include="../Upgradarr.Apps.Sonarr/Upgradarr.Apps.Sonarr.csproj" />
+    <ProjectReference Include="../Upgradarr.Integrations.Radarr/Upgradarr.Integrations.Radarr.csproj" />
+    <ProjectReference Include="../Upgradarr.Integrations.Sonarr/Upgradarr.Integrations.Sonarr.csproj" />
     <ProjectReference Include="../Upgradarr.Data/Upgradarr.Data.csproj" />
   </ItemGroup>
 

@@ -3,9 +3,9 @@ using Upgradarr.Api.BackgroundServices;
 using Upgradarr.Api.Endpoints;
 using Upgradarr.Api.Middleware;
 using Upgradarr.Application.Extensions;
-using Upgradarr.Apps.Radarr.Extensions;
-using Upgradarr.Apps.Sonarr.Extensions;
 using Upgradarr.Contracts;
+using Upgradarr.Integrations.Radarr.Extensions;
+using Upgradarr.Integrations.Sonarr.Extensions;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
