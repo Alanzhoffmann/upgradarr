@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using TUnit.Playwright;
 
 namespace Upgradarr.Web.Tests;
@@ -12,10 +13,21 @@ public class WebE2ETests : PageTest
     [Before(Test)]
     public void SetupServer()
     {
+        var dbId = Guid.NewGuid().ToString("N");
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseUrls("http://127.0.0.1:0");
+
+            builder.ConfigureAppConfiguration(
+                (context, config) =>
+                {
+                    config.AddInMemoryCollection(
+                        new Dictionary<string, string?> { ["Data:ConnectionString"] = $"Data Source=file:{dbId}?mode=memory&cache=shared" }
+                    );
+                }
+            );
         });
+
         _client = _factory.CreateClient();
     }
 
