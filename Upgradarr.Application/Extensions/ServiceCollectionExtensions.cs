@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Upgradarr.Application.Interfaces;
 using Upgradarr.Application.Options;
 using Upgradarr.Application.Services;
 using Upgradarr.Data.Extensions;
@@ -20,6 +21,7 @@ public static class ServiceCollectionExtensions
 
             services.AddScoped<CleanupService>();
             services.AddScoped<IUpgradeService, UpgradeService>();
+            services.AddScoped<IQueryService, QueryService>();
 
             services
                 .AddOptions<CleanupOptions>()
