@@ -6,6 +6,8 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- <PublishAot>true</PublishAot> -->
     <ContainerRepository>upgradarr</ContainerRepository>
+    <PublishWwwroot>true</PublishWwwroot>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.EntityFrameworkCore.GeneratedInterceptors</InterceptorsNamespaces>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,10 +26,6 @@
     <ProjectReference Include="../Upgradarr.Contracts/Upgradarr.Contracts.csproj" />
     <ProjectReference Include="../Upgradarr.Web/Upgradarr.Web.csproj" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.EntityFrameworkCore.GeneratedInterceptors</InterceptorsNamespaces>
-  </PropertyGroup>
 
   <Target Name="Husky" AfterTargets="Restore" Condition="'$(HUSKY)' != 0" Inputs="../.config/dotnet-tools.json" Outputs="../.husky/_/install.stamp">
     <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" />

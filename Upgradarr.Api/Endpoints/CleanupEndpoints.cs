@@ -11,7 +11,7 @@ public static class CleanupEndpoints
     {
         public void MapCleanupEndpoints()
         {
-            var cleanupApi = routes.MapGroup("/cleanup");
+            var cleanupApi = routes.MapGroup("api/cleanup");
 
             cleanupApi.MapGet("/", GetTrackedDownloads).WithName("GetTrackedDownloads");
 

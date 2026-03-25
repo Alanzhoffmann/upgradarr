@@ -11,7 +11,7 @@ public static class UpgradeEndpoints
     {
         public void MapUpgradeEndpoints()
         {
-            var upgradeApi = routes.MapGroup("/upgrade");
+            var upgradeApi = routes.MapGroup("api/upgrade");
 
             upgradeApi.MapGet("/", GetUpgradeStates).WithName("GetUpgradeStates");
 
