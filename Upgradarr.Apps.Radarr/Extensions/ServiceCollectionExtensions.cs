@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Upgradarr.Apps.Radarr.Options;
@@ -15,14 +14,7 @@ public static class ServiceCollectionExtensions
         {
             services.AddHybridCache();
 
-            services
-                .AddOptions<RadarrOptions>()
-                .Configure(
-                    (RadarrOptions opt, IServiceProvider sp) =>
-                    {
-                        sp.GetRequiredService<IConfiguration>().GetSection(RadarrOptions.SectionName).Bind(opt);
-                    }
-                );
+            services.AddOptions<RadarrOptions>().BindConfiguration(RadarrOptions.SectionName);
 
             services
                 .AddHttpClient<RadarrClient>()
