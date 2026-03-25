@@ -42,7 +42,7 @@ public class EndpointTests : WebApplicationTest<MyTestFactory, Program>
     public async Task GetUpgrades_ReturnsSuccess()
     {
         var client = Factory.CreateClient();
-        var response = await client.GetAsync("/upgrade");
+        var response = await client.GetAsync("/api/upgrade");
         response.EnsureSuccessStatusCode();
 
         var upgrades = await response.Content.ReadFromJsonAsync<List<UpgradeStateDto>>();
@@ -53,7 +53,7 @@ public class EndpointTests : WebApplicationTest<MyTestFactory, Program>
     public async Task GetCleanups_ReturnsSuccess()
     {
         var client = Factory.CreateClient();
-        var response = await client.GetAsync("/cleanup");
+        var response = await client.GetAsync("/api/cleanup");
         response.EnsureSuccessStatusCode();
 
         var cleanups = await response.Content.ReadFromJsonAsync<List<QueueRecordDto>>();
