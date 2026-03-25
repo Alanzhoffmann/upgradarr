@@ -112,7 +112,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
     public async Task<bool> HasOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
         var queue = GetAllQueueItems(cancellationToken);
-        if (await queue.AnyAsync(q => q is RadarrQueueResource radarrResource && radarrResource.MovieId == state.ItemId, cancellationToken: cancellationToken))
+        if (await queue.OfType<RadarrQueueResource>().AnyAsync(q => q.MovieId == state.ItemId, cancellationToken: cancellationToken))
         {
             _logger.LogMovieIsDownloading(state.Title ?? "Unknown", state.ItemId);
             return true;

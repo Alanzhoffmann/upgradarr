@@ -272,7 +272,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
     private async Task<bool> HasSeriesOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken)
     {
         var queue = GetAllQueueItems(cancellationToken);
-        if (await queue.AnyAsync(q => q is SonarrQueueResource sonarrResource && sonarrResource.SeriesId == state.ItemId, cancellationToken: cancellationToken))
+        if (await queue.OfType<SonarrQueueResource>().AnyAsync(q => q.SeriesId == state.ItemId, cancellationToken: cancellationToken))
         {
             _logger.LogSeriesHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
             return true;
@@ -287,13 +287,12 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
 
         var queue = GetAllQueueItems(cancellationToken);
         if (
-            await queue.AnyAsync(
-                q =>
-                    q is SonarrQueueResource sonarrResource
-                    && sonarrResource.SeriesId == state.ParentSeriesId.Value
-                    && sonarrResource.Episode?.SeasonNumber == state.SeasonNumber.Value,
-                cancellationToken: cancellationToken
-            )
+            await queue
+                .OfType<SonarrQueueResource>()
+                .AnyAsync(
+                    q => q.SeriesId == state.ParentSeriesId.Value && q.Episode?.SeasonNumber == state.SeasonNumber.Value,
+                    cancellationToken: cancellationToken
+                )
         )
         {
             _logger.LogSeasonHasOngoingDownloads(state.SeasonNumber.Value, state.Title ?? "Unknown", state.ParentSeriesId.Value);
@@ -308,9 +307,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
             return false;
 
         var queue = GetAllQueueItems(cancellationToken);
-        if (
-            await queue.AnyAsync(q => q is SonarrQueueResource sonarrResource && sonarrResource.EpisodeId == state.ItemId, cancellationToken: cancellationToken)
-        )
+        if (await queue.OfType<SonarrQueueResource>().AnyAsync(q => q.EpisodeId == state.ItemId, cancellationToken: cancellationToken))
         {
             _logger.LogEpisodeIsDownloading(state.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
             return true;
