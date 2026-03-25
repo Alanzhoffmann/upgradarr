@@ -5,7 +5,7 @@ using Upgradarr.Api.Middleware;
 using Upgradarr.Application.Extensions;
 using Upgradarr.Apps.Radarr.Extensions;
 using Upgradarr.Apps.Sonarr.Extensions;
-using Upgradarr.Domain.Entities;
+using Upgradarr.Contracts;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -48,7 +48,7 @@ app.MapUpgradeEndpoints();
 app.Run();
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = true)]
-[JsonSerializable(typeof(List<QueueRecord>))]
-[JsonSerializable(typeof(UpgradeState))]
-[JsonSerializable(typeof(List<UpgradeState>))]
+[JsonSerializable(typeof(List<QueueRecordDto>))]
+[JsonSerializable(typeof(UpgradeStateDto))]
+[JsonSerializable(typeof(List<UpgradeStateDto>))]
 internal partial class AppJsonSerializerContext : JsonSerializerContext { }

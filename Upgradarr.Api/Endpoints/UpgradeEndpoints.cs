@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Upgradarr.Contracts;
 using Upgradarr.Data;
 using Upgradarr.Domain.Enums;
-using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Api.Endpoints;
 
@@ -19,9 +19,34 @@ public static class UpgradeEndpoints
         }
 
         private static async Task<IResult> GetUpgradeStates(AppDbContext dbContext) =>
-            Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).ToListAsync());
+            Results.Ok(
+                await dbContext
+                    .UpgradeStates.OrderBy(u => u.QueuePosition)
+                    .Select(u => new UpgradeStateDto
+                    {
+                        Id = u.Id,
+                        Title = u.Title,
+                        ItemType = u.ItemType.ToString(),
+                        SearchState = u.SearchState.ToString(),
+                        QueuePosition = u.QueuePosition,
+                    })
+                    .ToListAsync()
+            );
 
         private static async Task<IResult> GetPendingUpgradeStates(AppDbContext dbContext) =>
-            Results.Ok(await dbContext.UpgradeStates.OrderBy(u => u.QueuePosition).Where(u => u.SearchState == SearchState.Pending).ToListAsync());
+            Results.Ok(
+                await dbContext
+                    .UpgradeStates.OrderBy(u => u.QueuePosition)
+                    .Where(u => u.SearchState == SearchState.Pending)
+                    .Select(u => new UpgradeStateDto
+                    {
+                        Id = u.Id,
+                        Title = u.Title,
+                        ItemType = u.ItemType.ToString(),
+                        SearchState = u.SearchState.ToString(),
+                        QueuePosition = u.QueuePosition,
+                    })
+                    .ToListAsync()
+            );
     }
 }
