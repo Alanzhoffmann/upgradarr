@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Upgradarr.Domain\Upgradarr.Domain.csproj" />
-    <ProjectReference Include="..\Upgradarr.Contracts\Upgradarr.Contracts.csproj" />
+    <ProjectReference Include="../Upgradarr.Domain/Upgradarr.Domain.csproj" />
+    <ProjectReference Include="../Upgradarr.Contracts/Upgradarr.Contracts.csproj" />
   </ItemGroup>
 </Project>
