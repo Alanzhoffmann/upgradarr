@@ -29,7 +29,7 @@ public static class ServiceCollectionExtensions
                 .ConfigureHttpClient(
                     (serviceProvider, client) =>
                     {
-                        var options = serviceProvider.GetRequiredService<IOptionsSnapshot<RadarrOptions>>().Value;
+                        var options = serviceProvider.GetRequiredService<IOptionsMonitor<RadarrOptions>>().CurrentValue;
                         client.BaseAddress = new Uri(options.BaseUrl);
                         if (!string.IsNullOrEmpty(options.ApiKey))
                         {
@@ -38,10 +38,10 @@ public static class ServiceCollectionExtensions
                     }
                 );
 
-            services.AddKeyedScoped<IQueueManager>(RecordSource.Radarr, (sp, _) => sp.GetRequiredService<RadarrClient>());
+            services.AddKeyedTransient<IQueueManager>(RecordSource.Radarr, (sp, _) => sp.GetRequiredService<RadarrClient>());
             services.AddTransient(sp => sp.GetRequiredKeyedService<IQueueManager>(RecordSource.Radarr));
 
-            services.AddKeyedScoped<IUpgradeManager>(RecordSource.Radarr, (sp, _) => sp.GetRequiredService<RadarrClient>());
+            services.AddKeyedTransient<IUpgradeManager>(RecordSource.Radarr, (sp, _) => sp.GetRequiredService<RadarrClient>());
             services.AddTransient(sp => sp.GetRequiredKeyedService<IUpgradeManager>(RecordSource.Radarr));
 
             return services;

@@ -29,7 +29,7 @@ public static class ServiceCollectionExtensions
                 .ConfigureHttpClient(
                     (serviceProvider, client) =>
                     {
-                        var options = serviceProvider.GetRequiredService<IOptionsSnapshot<SonarrOptions>>().Value;
+                        var options = serviceProvider.GetRequiredService<IOptionsMonitor<SonarrOptions>>().CurrentValue;
                         client.BaseAddress = new Uri(options.BaseUrl);
                         if (!string.IsNullOrEmpty(options.ApiKey))
                         {
@@ -38,10 +38,10 @@ public static class ServiceCollectionExtensions
                     }
                 );
 
-            services.AddKeyedScoped<IQueueManager>(RecordSource.Sonarr, (sp, _) => sp.GetRequiredService<SonarrClient>());
+            services.AddKeyedTransient<IQueueManager>(RecordSource.Sonarr, (sp, _) => sp.GetRequiredService<SonarrClient>());
             services.AddTransient(sp => sp.GetRequiredKeyedService<IQueueManager>(RecordSource.Sonarr));
 
-            services.AddKeyedScoped<IUpgradeManager>(RecordSource.Sonarr, (sp, _) => sp.GetRequiredService<SonarrClient>());
+            services.AddKeyedTransient<IUpgradeManager>(RecordSource.Sonarr, (sp, _) => sp.GetRequiredService<SonarrClient>());
             services.AddTransient(sp => sp.GetRequiredKeyedService<IUpgradeManager>(RecordSource.Sonarr));
 
             return services;
