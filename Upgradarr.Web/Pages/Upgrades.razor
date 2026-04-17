@@ -4,7 +4,7 @@
 
 <PageTitle>Upgrades</PageTitle>
 
-<div style="display: flex; justify-content: space-between; align-items: center;">
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
     <h1>Upgrades</h1>
     <FluentSwitch @bind-Value="ShowPendingOnly" @bind-Value:after="LoadData">Show Pending Only</FluentSwitch>
 </div>
@@ -15,12 +15,14 @@
 }
 else
 {
-    <FluentDataGrid Items="@upgrades.AsQueryable()" Style="width: 100%;" GridTemplateColumns="1fr 1fr 1fr 1fr">
-        <PropertyColumn Property="@(p => p.Title ?? "Unknown")" Sortable="true" />
-        <PropertyColumn Property="@(p => p.ItemType)" Sortable="true" />
-        <PropertyColumn Property="@(p => p.SearchState)" Sortable="true" />
-        <PropertyColumn Property="@(p => p.QueuePosition)" Sortable="true" />
-    </FluentDataGrid>
+    <div style="overflow-x: auto; width: 100%;">
+        <FluentDataGrid Items="@upgrades.AsQueryable()" Style="min-width: 600px; width: 100%;" GridTemplateColumns="1fr 1fr 1fr 1fr">
+            <PropertyColumn Title="Title" Property="@(p => p.Title ?? "Unknown")" Sortable="true" />
+            <PropertyColumn Title="Type" Property="@(p => p.ItemType)" Sortable="true" />
+            <PropertyColumn Title="State" Property="@(p => p.SearchState)" Sortable="true" />
+            <PropertyColumn Title="Queue Position" Property="@(p => p.QueuePosition)" Sortable="true" />
+        </FluentDataGrid>
+    </div>
 }
 
 @code {

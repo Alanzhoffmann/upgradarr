@@ -37,7 +37,7 @@ public class CleanupBackgroundService : BackgroundService
                     _logger.LogCleanupError(ex.Message);
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(_optionsMonitor.CurrentValue.CleanupIntervalMinutes), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(Math.Max(1, _optionsMonitor.CurrentValue.CleanupIntervalMinutes)), stoppingToken);
             }
         }
     }

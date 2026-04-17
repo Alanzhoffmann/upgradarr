@@ -129,6 +129,15 @@ code {
         margin: 0.5rem 3rem 0.5rem 1.5rem !important;
     }
 
+    h1 {
+        font-size: 1.5rem;
+        margin: 0.5rem 0;
+    }
+
+    .content {
+        padding: 0.5rem 0.75rem;
+    }
+
     [dir="rtl"] .header-gutters {
         margin: 0.5rem 1.5rem 0.5rem 3rem !important;
     }

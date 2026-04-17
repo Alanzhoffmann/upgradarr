@@ -12,16 +12,17 @@
 }
 else
 {
-    @* Add a simple run cleanup button *@
     <FluentButton Appearance="Appearance.Accent" OnClick="RunCleanup">Run Cleanup Now</FluentButton>
     <br/><br/>
-    <FluentDataGrid Items="@cleanups.AsQueryable()" Style="width: 100%;" GridTemplateColumns="1fr 2fr 1fr 1fr 1fr">
-        <PropertyColumn Property="@(p => p.Title ?? "Unknown")" Sortable="true" />
-        <PropertyColumn Property="@(p => p.DownloadId)" Sortable="true" />
-        <PropertyColumn Property="@(p => p.Source)" Sortable="true" />
-        <PropertyColumn Property="@(p => p.Added)" Sortable="true" Format="yyyy-MM-dd HH:mm" />
-        <PropertyColumn Property="@(p => p.RemoveAt)" Sortable="true" Format="yyyy-MM-dd HH:mm" />
-    </FluentDataGrid>
+    <div style="overflow-x: auto; width: 100%;">
+        <FluentDataGrid Items="@cleanups.AsQueryable()" Style="min-width: 700px; width: 100%;" GridTemplateColumns="1fr 2fr 1fr 1fr 1fr">
+            <PropertyColumn Title="Title" Property="@(p => p.Title ?? "Unknown")" Sortable="true" />
+            <PropertyColumn Title="Download ID" Property="@(p => p.DownloadId)" Sortable="true" />
+            <PropertyColumn Title="Source" Property="@(p => p.Source)" Sortable="true" />
+            <PropertyColumn Title="Added" Property="@(p => p.Added)" Sortable="true" Format="yyyy-MM-dd HH:mm" />
+            <PropertyColumn Title="Remove At" Property="@(p => p.RemoveAt)" Sortable="true" Format="yyyy-MM-dd HH:mm" />
+        </FluentDataGrid>
+    </div>
 }
 
 @code {
