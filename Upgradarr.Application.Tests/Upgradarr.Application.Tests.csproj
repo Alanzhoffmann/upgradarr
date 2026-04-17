@@ -9,9 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.21.20" />
-    <PackageReference Include="TUnit.Mocks" Version="1.21.20" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.5" />
+    <PackageReference Include="TUnit" Version="1.35.0" />
+    <PackageReference Include="TUnit.Mocks" Version="1.35.0-beta" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.6" />
   </ItemGroup>
 
   <ItemGroup>

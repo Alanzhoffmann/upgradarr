@@ -60,8 +60,8 @@ public class UpgradeServiceTests
         await service.ProcessItemUpgradeAsync(state);
 
         // Assert
-        Mock.VerifyAll(manager1);
-        Mock.VerifyAll(manager2);
+        manager1.VerifyAll();
+        manager2.VerifyAll();
 
         var updatedState = await dbContext.UpgradeStates.FirstAsync();
         await Assert.That(updatedState.SearchState).IsEqualTo(SearchState.Searched);
