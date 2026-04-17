@@ -83,7 +83,7 @@ public abstract class QueueManagerBase<TQueueResource>
             }
 
             page++;
-        } while (items.Records?.Count > 0);
+        } while (items.TotalRecords > (page - 1) * PageSize);
     }
 
     protected abstract Task<PagingResource<TQueueResource>> GetQueuePageAsync(int page, int pageSize, CancellationToken cancellationToken);
