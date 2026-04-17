@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Upgradarr.Data;
 using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Entities;
+using Upgradarr.Domain.Entities.Radarr;
+using Upgradarr.Domain.Entities.Sonarr;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 
@@ -35,20 +37,20 @@ public class UpgradeServiceTests
         var timeProvider = TimeProvider.System;
         var logger = NullLogger<UpgradeService>.Instance;
 
-        var state = new UpgradeState
+        var state = new RadarrUpgradeState
         {
             ItemId = 1,
-            ItemType = ItemType.Movie,
             SearchState = SearchState.Pending,
+            Metadata = new RadarrMetadata(RadarrItemType.Movie),
         };
         dbContext.UpgradeStates.Add(state);
         await dbContext.SaveChangesAsync();
 
         var manager1 = Mock.Of<IUpgradeManager>();
-        manager1.CanHandle(ItemType.Movie).Returns(false);
+        manager1.CanHandle(state).Returns(false);
 
         var manager2 = Mock.Of<IUpgradeManager>();
-        manager2.CanHandle(ItemType.Movie).Returns(true);
+        manager2.CanHandle(state).Returns(true);
         manager2.ProcessUpgradeAsync(state, Any<CancellationToken>()).Returns(UpgradeActionResult.Searched);
 
         var migrationState = Mock.Of<IMigrationState>();
@@ -60,8 +62,8 @@ public class UpgradeServiceTests
         await service.ProcessItemUpgradeAsync(state);
 
         // Assert
-        Mock.VerifyAll(manager1);
-        Mock.VerifyAll(manager2);
+        manager1.VerifyAll();
+        manager2.VerifyAll();
 
         var updatedState = await dbContext.UpgradeStates.FirstAsync();
         await Assert.That(updatedState.SearchState).IsEqualTo(SearchState.Searched);
@@ -74,17 +76,17 @@ public class UpgradeServiceTests
         var timeProvider = TimeProvider.System;
         var logger = NullLogger<UpgradeService>.Instance;
 
-        var state = new UpgradeState
+        var state = new SonarrUpgradeState
         {
             ItemId = 2,
-            ItemType = ItemType.Series,
             SearchState = SearchState.Pending,
+            Metadata = new SonarrMetadata(SonarrItemType.Series),
         };
         dbContext.UpgradeStates.Add(state);
         await dbContext.SaveChangesAsync();
 
         var manager = Mock.Of<IUpgradeManager>();
-        manager.CanHandle(ItemType.Series).Returns(true);
+        manager.CanHandle(state).Returns(true);
         manager.ProcessUpgradeAsync(state, Any<CancellationToken>()).Returns(UpgradeActionResult.Removed);
 
         var migrationState = Mock.Of<IMigrationState>();
@@ -105,17 +107,17 @@ public class UpgradeServiceTests
         var timeProvider = TimeProvider.System;
         var logger = NullLogger<UpgradeService>.Instance;
 
-        var state = new UpgradeState
+        var state = new SonarrUpgradeState
         {
             ItemId = 3,
-            ItemType = ItemType.Episode,
+            Metadata = new SonarrMetadata(SonarrItemType.Episode),
             SearchState = SearchState.Pending,
         };
         dbContext.UpgradeStates.Add(state);
         await dbContext.SaveChangesAsync();
 
         var manager = Mock.Of<IUpgradeManager>();
-        manager.CanHandle(ItemType.Episode).Returns(true);
+        manager.CanHandle(state).Returns(true);
         manager.ProcessUpgradeAsync(state, Any<CancellationToken>()).Throws(new Exception("API failure"));
 
         var migrationState = Mock.Of<IMigrationState>();

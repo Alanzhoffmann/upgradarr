@@ -42,7 +42,7 @@ public class QueryService : IQueryService
             {
                 Id = u.Id,
                 Title = u.Title,
-                ItemType = u.ItemType.ToString(),
+                // ItemType = u.ItemType.ToString(),
                 SearchState = u.SearchState.ToString(),
                 QueuePosition = u.QueuePosition,
             })

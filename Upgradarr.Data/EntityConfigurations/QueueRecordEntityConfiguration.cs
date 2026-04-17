@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Upgradarr.Domain.Entities;
 
@@ -10,12 +10,6 @@ public class QueueRecordEntityConfiguration : IEntityTypeConfiguration<QueueReco
     {
         builder.HasKey(q => q.DownloadId);
 
-        builder.OwnsMany(
-            q => q.ItemScores,
-            qb =>
-            {
-                qb.ToJson();
-            }
-        );
+        builder.ComplexProperty(q => q.ItemScores, qb => qb.ToJson());
     }
 }

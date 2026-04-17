@@ -1,10 +1,12 @@
+using Upgradarr.Domain.Entities.Radarr;
+using Upgradarr.Domain.Entities.Sonarr;
 using Upgradarr.Domain.Enums;
 
 namespace Upgradarr.Domain.Entities;
 
-public class UpgradeState
+public abstract class UpgradeState
 {
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     /// <summary>
     /// The ID of the series or movie
@@ -15,26 +17,6 @@ public class UpgradeState
     /// The title of the series or movie
     /// </summary>
     public string? Title { get; set; }
-
-    /// <summary>
-    /// Type of item: series, season, episode or movie
-    /// </summary>
-    public required ItemType ItemType { get; set; }
-
-    /// <summary>
-    /// For season/episode items - the parent series ID
-    /// </summary>
-    public int? ParentSeriesId { get; set; }
-
-    /// <summary>
-    /// For episode items - the season number
-    /// </summary>
-    public int? SeasonNumber { get; set; }
-
-    /// <summary>
-    /// For episode items - the episode number
-    /// </summary>
-    public int? EpisodeNumber { get; set; }
 
     /// <summary>
     /// The search state: pending, searched, or failed
@@ -75,4 +57,6 @@ public class UpgradeState
     /// When this record was last updated
     /// </summary>
     public DateTimeOffset? LastUpdatedAt { get; set; }
+
+    public abstract (RecordSource, int, int?, int?, int?) GetUniqueKey();
 }

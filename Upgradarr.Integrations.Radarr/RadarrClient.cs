@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Domain.Entities;
+using Upgradarr.Domain.Entities.Radarr;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 using Upgradarr.Domain.ValueObjects;
@@ -28,9 +29,9 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         _hybridCache = hybridCache;
     }
 
-    public RecordSource SourceName => RecordSource.Radarr;
+    public RecordSource Source => RecordSource.Radarr;
 
-    public bool CanHandle(ItemType itemType) => itemType == ItemType.Movie;
+    public bool CanHandle(UpgradeState state) => state is RadarrUpgradeState;
 
     public async IAsyncEnumerable<UpgradeState> BuildQueueItemsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -41,16 +42,16 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
             if (m.InCinemas.HasValue && m.InCinemas.Value > _timeProvider.GetUtcNow())
                 continue;
 
-            yield return new UpgradeState
+            yield return new RadarrUpgradeState
             {
                 ItemId = m.Id,
                 Title = m.Title,
-                ItemType = ItemType.Movie,
                 SearchState = SearchState.Pending,
                 IsMonitored = true,
                 IsMissing = !m.HasFile,
                 ReleaseDate = m.InCinemas,
                 CreatedAt = _timeProvider.GetUtcNow(),
+                Metadata = new RadarrMetadata(RadarrItemType.Movie),
             };
         }
     }
@@ -67,16 +68,16 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
             if (m.InCinemas.HasValue && m.InCinemas.Value > _timeProvider.GetUtcNow())
                 continue;
 
-            yield return new UpgradeState
+            yield return new RadarrUpgradeState
             {
                 ItemId = m.Id,
                 Title = m.Title,
-                ItemType = ItemType.Movie,
                 SearchState = SearchState.Pending,
                 IsMonitored = true,
                 IsMissing = !m.HasFile,
                 ReleaseDate = m.InCinemas,
                 CreatedAt = _timeProvider.GetUtcNow(),
+                Metadata = new RadarrMetadata(RadarrItemType.Movie),
             };
         }
     }

@@ -9,7 +9,7 @@ public class QueueRecord
     public string? Title { get; init; }
     public DateTimeOffset? RemoveAt { get; private set; }
     public DateTimeOffset Added { get; init; } = DateTimeOffset.UtcNow;
-    public RecordSource Source { get; set; }
+    public RecordSource Source { get; init; }
     public ICollection<QueueItemScore> ItemScores { get; init; } = [];
 
     public void MarkForRemoval(DateTimeOffset removeAt)
