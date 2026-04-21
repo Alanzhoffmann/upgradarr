@@ -8,12 +8,12 @@ public interface IUpgradeManager
     /// <summary>
     /// The source this manager handles
     /// </summary>
-    RecordSource SourceName { get; }
+    RecordSource Source { get; }
 
     /// <summary>
     /// Whether this manager can handle the specified item type
     /// </summary>
-    bool CanHandle(ItemType itemType);
+    bool CanHandle(UpgradeState upgradeState);
 
     /// <summary>
     /// Builds initial queue items for tracking

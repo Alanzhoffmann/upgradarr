@@ -4,6 +4,8 @@ using Upgradarr.Application.Extensions;
 using Upgradarr.Data;
 using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Entities;
+using Upgradarr.Domain.Entities.Radarr;
+using Upgradarr.Domain.Entities.Sonarr;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 using Upgradarr.Domain.ValueObjects;
@@ -96,9 +98,9 @@ internal class UpgradeService : IUpgradeService
         if (state is null)
             return false;
 
-        _logger.LogProcessingItem(state.ItemType, state.Title ?? "Unknown", state.ItemId);
+        // _logger.LogProcessingItem(state.ItemType, state.Title ?? "Unknown", state.ItemId);
 
-        var manager = _upgradeManagers.FirstOrDefault(m => m.CanHandle(state.ItemType));
+        var manager = _upgradeManagers.FirstOrDefault(m => m.CanHandle(state));
         if (manager is null)
         {
             return false;
@@ -135,18 +137,25 @@ internal class UpgradeService : IUpgradeService
     {
         var itemsToRemove = new List<UpgradeState> { state };
 
-        if (state.ItemType == ItemType.Series)
+        if (state is SonarrUpgradeState sonarrState)
         {
-            var children = await _dbContext.UpgradeStates.Where(u => u.ParentSeriesId == state.ItemId).ToListAsync(cancellationToken);
-            itemsToRemove.AddRange(children);
-        }
-        else if (state.ItemType == ItemType.Season)
-        {
-            var children = await _dbContext
-                .UpgradeStates.Where(u => u.ParentSeriesId == state.ParentSeriesId && u.SeasonNumber == state.SeasonNumber)
-                .ToListAsync(cancellationToken);
-            // It will also include the season itself
-            itemsToRemove.AddRange(children);
+            if (sonarrState.Metadata.Type == SonarrItemType.Series)
+            {
+                var children = await _dbContext.Set<SonarrUpgradeState>().Where(u => u.Metadata.ParentSeriesId == state.ItemId).ToListAsync(cancellationToken);
+                itemsToRemove.AddRange(children);
+            }
+            else if (sonarrState.Metadata.Type == SonarrItemType.Season)
+            {
+                var children = await _dbContext
+                    .Set<SonarrUpgradeState>()
+                    .Where(u =>
+                        u.Metadata.ParentSeriesId == sonarrState.Metadata.ParentSeriesId && u.Metadata.SeasonNumber == sonarrState.Metadata.SeasonNumber
+                    )
+                    .ToListAsync(cancellationToken);
+
+                // It will also include the season itself
+                itemsToRemove.AddRange(children);
+            }
         }
 
         _dbContext.UpgradeStates.RemoveRange(itemsToRemove.DistinctBy(i => i.Id));
@@ -155,7 +164,7 @@ internal class UpgradeService : IUpgradeService
 
     private async Task<bool> HasOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
-        var manager = _upgradeManagers.FirstOrDefault(m => m.CanHandle(state.ItemType));
+        var manager = _upgradeManagers.FirstOrDefault(m => m.CanHandle(state));
         if (manager is null)
             return false;
 
@@ -198,9 +207,8 @@ internal class UpgradeService : IUpgradeService
     /// <summary>
     /// Shuffles items while respecting parent-child dependencies.
     /// </summary>
-    private static List<UpgradeState> ShuffleWithDependencies(List<UpgradeState> items)
+    private static IEnumerable<UpgradeState> ShuffleWithDependencies(IEnumerable<UpgradeState> items)
     {
-        var result = new List<UpgradeState>();
         var remaining = new List<UpgradeState>(items);
 
         // Track what's been added
@@ -212,44 +220,53 @@ internal class UpgradeService : IUpgradeService
             // Find all items that can be added (dependencies are met)
             var available = remaining
                 .Where(item =>
-                {
-                    return item.ItemType switch
+                    item switch
                     {
-                        ItemType.Series or ItemType.Movie => true,
-                        ItemType.Season => item.ParentSeriesId.HasValue && addedSeries.Contains(item.ParentSeriesId.Value),
-                        ItemType.Episode => item.ParentSeriesId.HasValue
-                            && addedSeries.Contains(item.ParentSeriesId.Value)
-                            && item.SeasonNumber.HasValue
-                            && addedSeasons.Contains((item.ParentSeriesId.Value, item.SeasonNumber.Value)),
+                        RadarrUpgradeState => true, // Radarr items have no dependencies
+                        SonarrUpgradeState { Metadata.Type: SonarrItemType.Series } => true, // Series have no dependencies
+                        SonarrUpgradeState { Metadata.Type: SonarrItemType.Season } season => season.Metadata.ParentSeriesId.HasValue
+                            && addedSeries.Contains(season.Metadata.ParentSeriesId.Value), // Season depends on Series
+                        SonarrUpgradeState { Metadata.Type: SonarrItemType.Episode } episode => episode.Metadata.ParentSeriesId.HasValue
+                            && addedSeries.Contains(episode.Metadata.ParentSeriesId.Value)
+                            && episode.Metadata.SeasonNumber.HasValue
+                            && addedSeasons.Contains((episode.Metadata.ParentSeriesId.Value, episode.Metadata.SeasonNumber.Value)), // Episode depends on Series and Season
                         _ => false,
-                    };
-                })
+                    }
+                )
                 .ToList();
 
             if (available.Count == 0)
             {
-                // Shouldn't happen with valid data, but add remaining to avoid infinite loop
-                result.AddRange(remaining);
+                foreach (var i in remaining)
+                {
+                    yield return i;
+                }
+
                 break;
             }
 
             // Shuffle available items and pick one
             var shuffled = available.OrderBy(_ => Random.Shared.Next()).First();
-            result.Add(shuffled);
+            yield return shuffled;
             remaining.Remove(shuffled);
 
             // Update tracking
-            if (shuffled.ItemType == ItemType.Series)
+            if (shuffled is SonarrUpgradeState sonarrState)
             {
-                addedSeries.Add(shuffled.ItemId);
-            }
-            else if (shuffled.ItemType == ItemType.Season && shuffled.ParentSeriesId.HasValue && shuffled.SeasonNumber.HasValue)
-            {
-                addedSeasons.Add((shuffled.ParentSeriesId.Value, shuffled.SeasonNumber.Value));
+                if (sonarrState.Metadata.Type == SonarrItemType.Series)
+                {
+                    addedSeries.Add(sonarrState.ItemId);
+                }
+                else if (
+                    sonarrState.Metadata.Type == SonarrItemType.Season
+                    && sonarrState.Metadata.ParentSeriesId.HasValue
+                    && sonarrState.Metadata.SeasonNumber.HasValue
+                )
+                {
+                    addedSeasons.Add((sonarrState.Metadata.ParentSeriesId.Value, sonarrState.Metadata.SeasonNumber.Value));
+                }
             }
         }
-
-        return result;
     }
 
     private async Task ResetQueueAsync(CancellationToken cancellationToken = default)
@@ -297,14 +314,12 @@ internal class UpgradeService : IUpgradeService
                 }
             }
 
-            var trackableLookup = allTrackableItems.ToDictionary(t => (t.ItemType, t.ItemId, t.ParentSeriesId, t.SeasonNumber, t.EpisodeNumber));
+            var trackableLookup = allTrackableItems.ToDictionary(t => t.GetUniqueKey());
             bool monitoringChanged = false;
 
             foreach (var item in existingItems)
             {
-                bool isCurrentlyMonitored = trackableLookup.ContainsKey(
-                    (item.ItemType, item.ItemId, item.ParentSeriesId, item.SeasonNumber, item.EpisodeNumber)
-                );
+                bool isCurrentlyMonitored = trackableLookup.ContainsKey(item.GetUniqueKey());
 
                 if (item.IsMonitored != isCurrentlyMonitored)
                 {
@@ -314,10 +329,8 @@ internal class UpgradeService : IUpgradeService
                 }
             }
 
-            var existingKeys = existingItems.Select(i => (i.ItemType, i.ItemId, i.ParentSeriesId, i.SeasonNumber, i.EpisodeNumber)).ToHashSet();
-            var newItems = allTrackableItems
-                .Where(t => !existingKeys.Contains((t.ItemType, t.ItemId, t.ParentSeriesId, t.SeasonNumber, t.EpisodeNumber)))
-                .ToList();
+            var existingKeys = existingItems.Select(i => i.GetUniqueKey()).ToHashSet();
+            var newItems = allTrackableItems.Where(t => !existingKeys.Contains(t.GetUniqueKey())).ToList();
 
             if (newItems.Count == 0 && !monitoringChanged)
                 return;
@@ -380,7 +393,7 @@ internal class UpgradeService : IUpgradeService
             int position = 0;
             foreach (var (itemType, itemId, parentSeriesId, seasonNumber, episodeNumber) in items)
             {
-                var existingItem = await _dbContext.UpgradeStates.FirstOrDefaultAsync(u => u.ItemId == itemId && u.ItemType == itemType, cancellationToken);
+                var existingItem = await _dbContext.UpgradeStates.FirstOrDefaultAsync(u => u.ItemId == itemId, cancellationToken);
 
                 if (existingItem is not null)
                 {

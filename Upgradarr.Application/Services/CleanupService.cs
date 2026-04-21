@@ -219,7 +219,7 @@ public class CleanupService
             return true;
         }
 
-        var queueManager = _queueManagers.FirstOrDefault(m => m.SourceName == item.Source);
+        var queueManager = _queueManagers.FirstOrDefault(m => m.Source == item.Source);
         if (queueManager is null)
         {
             _logger.LogErrorRemovingItemFromQueue(item.Source);

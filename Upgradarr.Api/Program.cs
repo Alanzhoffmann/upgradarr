@@ -30,7 +30,7 @@ builder.Services.AddApplicationServices();
 
 var app = builder.Build();
 
-app.UseBlazorFrameworkFiles(); 
+app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.UseMiddleware<MigrationMiddleware>();

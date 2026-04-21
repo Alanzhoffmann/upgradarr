@@ -67,7 +67,7 @@ public class CleanupServiceTests
         };
 
         var queueManager = Mock.Of<IQueueManager>();
-        queueManager.SourceName.Returns(RecordSource.Sonarr);
+        queueManager.Source.Returns(RecordSource.Sonarr);
 
         async IAsyncEnumerable<IQueueResource> GetItems()
         {
@@ -118,7 +118,7 @@ public class CleanupServiceTests
         };
 
         var queueManager = Mock.Of<IQueueManager>();
-        queueManager.SourceName.Returns(RecordSource.Sonarr);
+        queueManager.Source.Returns(RecordSource.Sonarr);
 
         async IAsyncEnumerable<IQueueResource> GetItems()
         {
@@ -166,7 +166,7 @@ public class CleanupServiceTests
             Status = QueueStatus.Downloading,
         };
         var queueManager = Mock.Of<IQueueManager>();
-        queueManager.SourceName.Returns(RecordSource.Sonarr);
+        queueManager.Source.Returns(RecordSource.Sonarr);
 
         async IAsyncEnumerable<IQueueResource> GetItems()
         {
@@ -212,7 +212,7 @@ public class CleanupServiceTests
             Status = QueueStatus.Completed,
         };
         var queueManager = Mock.Of<IQueueManager>();
-        queueManager.SourceName.Returns(RecordSource.Sonarr);
+        queueManager.Source.Returns(RecordSource.Sonarr);
 
         async IAsyncEnumerable<IQueueResource> GetItems()
         {
@@ -260,7 +260,7 @@ public class CleanupServiceTests
         await dbContext.SaveChangesAsync();
 
         var queueManager = Mock.Of<IQueueManager>();
-        queueManager.SourceName.Returns(RecordSource.Sonarr);
+        queueManager.Source.Returns(RecordSource.Sonarr);
 
         async IAsyncEnumerable<IQueueResource> GetItems()
         {
