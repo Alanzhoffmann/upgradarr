@@ -1,7 +1,9 @@
-using Upgradarr.Application.Extensions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Upgradarr.Domain.Interfaces;
 
-namespace Upgradarr.Api.BackgroundServices;
+namespace Upgradarr.Application.BackgroundServices;
 
 public class UpgradeBackgroundService : BackgroundService
 {
@@ -39,4 +41,16 @@ public class UpgradeBackgroundService : BackgroundService
             }
         }
     }
+}
+
+internal static partial class UpgradeLoggerExtensions
+{
+    [LoggerMessage(EventId = 1010, Level = LogLevel.Information, Message = "Starting UpgradeBackgroundService")]
+    public static partial void LogStartingUpgradeService(this ILogger logger);
+
+    [LoggerMessage(EventId = 1011, Level = LogLevel.Information, Message = "Stopping UpgradeBackgroundService")]
+    public static partial void LogStoppingUpgradeService(this ILogger logger);
+
+    [LoggerMessage(EventId = 4011, Level = LogLevel.Error, Message = "Error in upgrade background service")]
+    public static partial void LogErrorInUpgradeBackgroundService(this ILogger logger, Exception ex);
 }

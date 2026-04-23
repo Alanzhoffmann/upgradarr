@@ -1,8 +1,11 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Upgradarr.Application.Options;
-using Upgradarr.Application.Services;
+using Upgradarr.Domain.Interfaces;
 
-namespace Upgradarr.Api.BackgroundServices;
+namespace Upgradarr.Application.BackgroundServices;
 
 public class CleanupBackgroundService : BackgroundService
 {
@@ -29,7 +32,7 @@ public class CleanupBackgroundService : BackgroundService
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
-                    var cleanupService = scope.ServiceProvider.GetRequiredService<CleanupService>();
+                    var cleanupService = scope.ServiceProvider.GetRequiredService<ICleanupService>();
                     await cleanupService.PerformCleanupAsync(stoppingToken);
                 }
                 catch (Exception ex)

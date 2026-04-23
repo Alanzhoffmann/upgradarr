@@ -5,12 +5,6 @@ namespace Upgradarr.Application.Extensions;
 
 public static partial class LoggerMessages
 {
-    [LoggerMessage(EventId = 1010, Level = LogLevel.Information, Message = "Starting UpgradeBackgroundService")]
-    public static partial void LogStartingUpgradeService(this ILogger logger);
-
-    [LoggerMessage(EventId = 1011, Level = LogLevel.Information, Message = "Stopping UpgradeBackgroundService")]
-    public static partial void LogStoppingUpgradeService(this ILogger logger);
-
     [LoggerMessage(EventId = 1012, Level = LogLevel.Information, Message = "No more items to upgrade")]
     public static partial void LogNoMoreItemsToUpgrade(this ILogger logger);
 
@@ -19,9 +13,6 @@ public static partial class LoggerMessages
 
     [LoggerMessage(EventId = 4010, Level = LogLevel.Error, Message = "Error initializing upgrade states")]
     public static partial void LogErrorInitializingUpgradeStates(this ILogger logger, Exception ex);
-
-    [LoggerMessage(EventId = 4011, Level = LogLevel.Error, Message = "Error in upgrade background service")]
-    public static partial void LogErrorInUpgradeBackgroundService(this ILogger logger, Exception ex);
 
     [LoggerMessage(EventId = 4012, Level = LogLevel.Error, Message = "Error checking queue for item {ItemId}")]
     public static partial void LogErrorCheckingQueueForItem(this ILogger logger, Exception ex, int itemId);

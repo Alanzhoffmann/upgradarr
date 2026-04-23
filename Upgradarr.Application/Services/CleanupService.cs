@@ -12,7 +12,7 @@ using Upgradarr.Domain.ValueObjects;
 
 namespace Upgradarr.Application.Services;
 
-public class CleanupService
+public class CleanupService : ICleanupService
 {
     private readonly CleanupOptions _options;
     private readonly ILogger<CleanupService> _logger;
