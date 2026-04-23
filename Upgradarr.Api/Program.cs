@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using Upgradarr.Api.BackgroundServices;
 using Upgradarr.Api.Endpoints;
 using Upgradarr.Api.Middleware;
+using Upgradarr.Application.BackgroundServices;
 using Upgradarr.Application.Extensions;
 using Upgradarr.Contracts;
 
@@ -30,7 +30,7 @@ builder.Services.AddApplicationServices();
 
 var app = builder.Build();
 
-app.UseBlazorFrameworkFiles(); 
+app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.UseMiddleware<MigrationMiddleware>();
