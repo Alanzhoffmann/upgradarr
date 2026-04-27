@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Upgradarr.Application.Services;
 using Upgradarr.Contracts;
 using Upgradarr.Data;
+using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Api.Endpoints;
 
@@ -32,7 +32,7 @@ public static class CleanupEndpoints
                     .ToListAsync()
             );
 
-        private static async Task<IResult> RunCleanup(CleanupService cleanupService, CancellationToken cancellationToken)
+        private static async Task<IResult> RunCleanup(ICleanupService cleanupService, CancellationToken cancellationToken)
         {
             await cleanupService.PerformCleanupAsync(cancellationToken);
             return Results.Ok();

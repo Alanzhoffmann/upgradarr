@@ -19,7 +19,7 @@ public static class ServiceCollectionExtensions
         {
             services.TryAddSingleton(TimeProvider.System);
 
-            services.AddScoped<CleanupService>();
+            services.AddScoped<ICleanupService, CleanupService>();
             services.AddScoped<IUpgradeService, UpgradeService>();
 
             services
