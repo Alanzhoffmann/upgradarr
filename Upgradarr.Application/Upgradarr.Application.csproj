@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Upgradarr.Integrations.Lidarr/Upgradarr.Integrations.Lidarr.csproj" />
     <ProjectReference Include="../Upgradarr.Integrations.Radarr/Upgradarr.Integrations.Radarr.csproj" />
     <ProjectReference Include="../Upgradarr.Integrations.Sonarr/Upgradarr.Integrations.Sonarr.csproj" />
     <ProjectReference Include="../Upgradarr.Data/Upgradarr.Data.csproj" />

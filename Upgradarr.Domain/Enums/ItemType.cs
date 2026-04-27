@@ -29,4 +29,14 @@ public enum ItemType
     /// A movie
     /// </summary>
     Movie = 4,
+
+    /// <summary>
+    /// A music artist
+    /// </summary>
+    Artist = 5,
+
+    /// <summary>
+    /// A music album
+    /// </summary>
+    Album = 6,
 }

@@ -5,6 +5,7 @@ using Upgradarr.Application.Options;
 using Upgradarr.Application.Services;
 using Upgradarr.Data.Extensions;
 using Upgradarr.Domain.Interfaces;
+using Upgradarr.Integrations.Lidarr.Extensions;
 using Upgradarr.Integrations.Radarr.Extensions;
 using Upgradarr.Integrations.Sonarr.Extensions;
 
@@ -34,6 +35,7 @@ public static class ServiceCollectionExtensions
 
             services.AddRadarr();
             services.AddSonarr();
+            services.AddLidarr();
 
             return services;
         }
