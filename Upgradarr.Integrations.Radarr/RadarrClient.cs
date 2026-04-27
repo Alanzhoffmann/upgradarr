@@ -8,6 +8,7 @@ using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 using Upgradarr.Domain.ValueObjects;
+using Upgradarr.Integrations.Interfaces;
 using Upgradarr.Integrations.Models;
 using Upgradarr.Integrations.Radarr.Extensions;
 using Upgradarr.Integrations.Radarr.Models;

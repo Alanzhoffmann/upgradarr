@@ -1,4 +1,4 @@
-﻿namespace Upgradarr.Domain.Enums;
+﻿namespace Upgradarr.Integrations.Enums;
 
 public enum QueueStatus
 {

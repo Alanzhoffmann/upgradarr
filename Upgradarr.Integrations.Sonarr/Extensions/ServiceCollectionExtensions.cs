@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
+using Upgradarr.Integrations.Extensions;
+using Upgradarr.Integrations.Interfaces;
 using Upgradarr.Integrations.Sonarr.Options;
 
 namespace Upgradarr.Integrations.Sonarr.Extensions;
@@ -13,6 +15,7 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddSonarr()
         {
+            services.AddIntegrationBase();
             services.AddHybridCache();
 
             services

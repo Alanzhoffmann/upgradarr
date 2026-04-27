@@ -1,7 +1,7 @@
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
 
-namespace Upgradarr.Domain.Interfaces;
+namespace Upgradarr.Integrations.Interfaces;
 
 public interface IUpgradeManager
 {

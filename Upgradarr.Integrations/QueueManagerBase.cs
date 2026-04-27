@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Upgradarr.Domain.Entities;
-using Upgradarr.Domain.Interfaces;
 using Upgradarr.Domain.ValueObjects;
+using Upgradarr.Integrations.Interfaces;
 using Upgradarr.Integrations.Models;
 
 namespace Upgradarr.Integrations;

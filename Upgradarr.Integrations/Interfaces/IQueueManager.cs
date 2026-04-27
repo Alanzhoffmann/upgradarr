@@ -1,6 +1,7 @@
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.ValueObjects;
+using Upgradarr.Integrations.Interfaces;
 
 namespace Upgradarr.Domain.Interfaces;
 

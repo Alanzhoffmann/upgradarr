@@ -1,7 +1,8 @@
-﻿using Upgradarr.Domain.Enums;
-using Upgradarr.Domain.ValueObjects;
+﻿using Upgradarr.Domain.Interfaces;
+using Upgradarr.Integrations.Enums;
+using Upgradarr.Integrations.Models;
 
-namespace Upgradarr.Domain.Interfaces;
+namespace Upgradarr.Integrations.Interfaces;
 
 public interface IQueueResource : IHasSource
 {

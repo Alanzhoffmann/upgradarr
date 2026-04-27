@@ -1,4 +1,4 @@
-﻿namespace Upgradarr.Domain.ValueObjects;
+﻿namespace Upgradarr.Integrations.Models;
 
 public record TrackedDownloadStatusMessage
 {

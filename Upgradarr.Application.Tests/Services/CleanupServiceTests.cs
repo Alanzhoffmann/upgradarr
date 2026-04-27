@@ -6,7 +6,9 @@ using Upgradarr.Data;
 using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
-using Upgradarr.Domain.ValueObjects;
+using Upgradarr.Integrations.Enums;
+using Upgradarr.Integrations.Interfaces;
+using Upgradarr.Integrations.Models;
 
 [assembly: GenerateMock(typeof(IQueueManager))]
 [assembly: GenerateMock(typeof(IOptionsSnapshot<CleanupOptions>))]
