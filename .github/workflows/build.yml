@@ -69,12 +69,14 @@ jobs:
       with:
         pattern: test-results
         path: ./test-results
+        merge-multiple: true
 
     - name: Download all coverage results
       uses: actions/download-artifact@v4
       with:
         pattern: coverage
         path: ./coverage
+        merge-multiple: true
 
     - name: Comment PR with results
       if: (!cancelled())
