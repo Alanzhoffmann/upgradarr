@@ -11,6 +11,7 @@
   </Folder>
   <Folder Name="/2 - Integrations/">
     <Project Path="Upgradarr.Integrations/Upgradarr.Integrations.csproj" />
+    <Project Path="Upgradarr.Integrations.Lidarr/Upgradarr.Integrations.Lidarr.csproj" />
     <Project Path="Upgradarr.Integrations.Radarr/Upgradarr.Integrations.Radarr.csproj" />
     <Project Path="Upgradarr.Integrations.Sonarr/Upgradarr.Integrations.Sonarr.csproj" />
   </Folder>

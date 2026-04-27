@@ -4,4 +4,5 @@ public enum RecordSource
 {
     Sonarr,
     Radarr,
+    Lidarr,
 }

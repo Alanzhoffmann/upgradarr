@@ -16,7 +16,7 @@
 else
 {
     <div style="overflow-x: auto; width: 100%;">
-        <FluentDataGrid Items="@upgrades.AsQueryable()" Style="min-width: 600px; width: 100%;" GridTemplateColumns="1fr 1fr 1fr 1fr">
+        <FluentDataGrid Items="@upgrades.AsQueryable()" Style="min-width: 600px; width: 100%;" GridTemplateColumns="2fr 1fr 1fr 1fr">
             <PropertyColumn Title="Title" Property="@(p => p.Title ?? "Unknown")" Sortable="true" />
             <PropertyColumn Title="Type" Property="@(p => p.ItemType)" Sortable="true" />
             <PropertyColumn Title="State" Property="@(p => p.SearchState)" Sortable="true" />

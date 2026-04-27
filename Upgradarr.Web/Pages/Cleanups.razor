@@ -15,12 +15,11 @@ else
     <FluentButton Appearance="Appearance.Accent" OnClick="RunCleanup">Run Cleanup Now</FluentButton>
     <br/><br/>
     <div style="overflow-x: auto; width: 100%;">
-        <FluentDataGrid Items="@cleanups.AsQueryable()" Style="min-width: 700px; width: 100%;" GridTemplateColumns="1fr 2fr 1fr 1fr 1fr">
+        <FluentDataGrid Items="@cleanups.AsQueryable()" Style="min-width: 700px; width: 100%;" GridTemplateColumns="2fr 1fr 1fr 1fr">
             <PropertyColumn Title="Title" Property="@(p => p.Title ?? "Unknown")" Sortable="true" />
-            <PropertyColumn Title="Download ID" Property="@(p => p.DownloadId)" Sortable="true" />
             <PropertyColumn Title="Source" Property="@(p => p.Source)" Sortable="true" />
-            <PropertyColumn Title="Added" Property="@(p => p.Added)" Sortable="true" Format="yyyy-MM-dd HH:mm" />
-            <PropertyColumn Title="Remove At" Property="@(p => p.RemoveAt)" Sortable="true" Format="yyyy-MM-dd HH:mm" />
+            <PropertyColumn Title="Added" Property="@(p => p.Added)" Sortable="true" Format="HH:mm dd-MMM-yyyy" />
+            <PropertyColumn Title="Remove At" Property="@(p => p.RemoveAt)" Sortable="true" Format="HH:mm dd-MMM-yyyy" />
         </FluentDataGrid>
     </div>
 }
