@@ -69,12 +69,14 @@ jobs:
       with:
         pattern: test-results
         path: ./test-results
+        merge-multiple: true
 
     - name: Download all coverage results
       uses: actions/download-artifact@v4
       with:
         pattern: coverage
         path: ./coverage
+        merge-multiple: true
 
     - name: Comment PR with results
       if: (!cancelled())
@@ -83,11 +85,20 @@ jobs:
         files: ./test-results/*.trx
         comment_mode: always
 
+    - name: Merge Coverage Reports
+      if: (!cancelled())
+      run: |
+        dotnet tool install --global dotnet-reportgenerator-globaltool
+        reportgenerator \
+          -reports:"./coverage/**/*.cobertura.xml" \
+          -targetdir:./coverage-merged \
+          -reporttypes:Cobertura
+
     - name: Code Coverage Report
       if: (!cancelled())
       uses: irongut/CodeCoverageSummary@v1.3.0
       with:
-        filename: ./coverage/**/*.cobertura.xml
+        filename: ./coverage-merged/Cobertura.xml
         badge: true
         format: markdown
         hide_branch_rate: false
