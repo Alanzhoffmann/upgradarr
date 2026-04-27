@@ -4,7 +4,7 @@ using Upgradarr.Data;
 using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
-using Upgradarr.Domain.Interfaces;
+using Upgradarr.Integrations.Interfaces;
 
 [assembly: GenerateMock(typeof(IUpgradeManager))]
 [assembly: GenerateMock(typeof(IMigrationState))]

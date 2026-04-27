@@ -5,13 +5,14 @@ using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 
-namespace Upgradarr.Data.Interceptors;
+namespace Upgradarr.Integrations.Interceptors;
 
-public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
+public class DeleteQueueItemInterceptor : SaveChangesInterceptor
 {
     private readonly TimeProvider _timeProvider;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DeleteQueueItemInterceptor> _logger;
+    private IUpgradeService UpgradeService => field ??= _serviceProvider.GetRequiredService<IUpgradeService>();
 
     public DeleteQueueItemInterceptor(TimeProvider timeProvider, IServiceProvider serviceProvider, ILogger<DeleteQueueItemInterceptor> logger)
     {
@@ -20,7 +21,7 @@ public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
         _logger = logger;
     }
 
-    public async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default
@@ -31,18 +32,16 @@ public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
             return result;
         }
 
-        if (eventData.Context is not AppDbContext context)
+        if (eventData.Context is null)
         {
             return result;
         }
 
         var now = _timeProvider.GetUtcNow();
-        var entries = context
-            .ChangeTracker.Entries<QueueRecord>()
+        var entries = eventData
+            .Context.ChangeTracker.Entries<QueueRecord>()
             .Where(e => e.Entity.RemoveAt.HasValue && e.Entity.RemoveAt.Value <= now)
             .GroupBy(e => e.Entity.Source);
-
-        var upgradeService = _serviceProvider.GetRequiredService<IUpgradeService>();
 
         foreach (var group in entries)
         {
@@ -59,13 +58,13 @@ public class DeleteQueueItemInterceptor : ISaveChangesInterceptor
 
                 if (allDeleted)
                 {
-                    context.Remove(entity);
+                    eventData.Context.Remove(entity);
                 }
 
                 // Add items to front of upgrade queue
                 if (itemsToRequeue.Count > 0)
                 {
-                    await upgradeService.AddItemsToFrontOfQueueAsync(itemsToRequeue, cancellationToken);
+                    await UpgradeService.AddItemsToFrontOfQueueAsync(itemsToRequeue, cancellationToken);
                 }
             }
         }
