@@ -1,6 +1,6 @@
 namespace Upgradarr.Integrations.Sonarr.Models;
 
-public class SeasonSearchCommand
+public record SeasonSearchCommand
 {
     public string Name { get; init; } = "SeasonSearch";
     public required int SeriesId { get; init; }

@@ -1,6 +1,6 @@
 ﻿namespace Upgradarr.Integrations.Sonarr.Models;
 
-public record AlternateTitleResource
+public record AlternateTitle
 {
     public string? Comment { get; init; }
     public string? SceneOrigin { get; init; }

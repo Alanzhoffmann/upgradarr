@@ -1,23 +1,23 @@
 ﻿namespace Upgradarr.Integrations.Models;
 
-public class QualityModel
+public record QualityModel
 {
-    public Quality? Quality { get; set; }
-    public Revision? Revision { get; set; }
+    public Quality? Quality { get; init; }
+    public Revision? Revision { get; init; }
 }
 
-public class Quality
+public record Quality
 {
-    public int Id { get; set; }
-    public string? Name { get; set; }
-    public string? Source { get; set; }
-    public int Resolution { get; set; }
-    public string? Modifier { get; set; }
+    public int Id { get; init; }
+    public string? Name { get; init; }
+    public string? Source { get; init; }
+    public int Resolution { get; init; }
+    public string? Modifier { get; init; }
 }
 
-public class Revision
+public record Revision
 {
-    public int Version { get; set; }
-    public int Real { get; set; }
-    public bool IsRepack { get; set; }
+    public int Version { get; init; }
+    public int Real { get; init; }
+    public bool IsRepack { get; init; }
 }
