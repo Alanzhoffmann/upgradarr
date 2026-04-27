@@ -8,7 +8,7 @@ public record SeriesResource
 
     // public object? AddOptions { get; init; }
     public string? AirTime { get; init; }
-    public IEnumerable<AlternateTitleResource>? AlternateTitles { get; init; }
+    public IEnumerable<AlternateTitle>? AlternateTitles { get; init; }
     public string? Certification { get; init; }
     public string? CleanTitle { get; init; }
     public bool Ended { get; init; }
@@ -31,7 +31,7 @@ public record SeriesResource
     public string? ProfileName { get; init; }
     public int QualityProfileId { get; init; }
 
-    // public RatingsResource? Ratings { get; init; }
+    public Ratings? Ratings { get; init; }
     public string? RemotePoster { get; init; }
     public string? RootFolderPath { get; init; }
     public int Runtime { get; init; }

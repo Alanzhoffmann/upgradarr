@@ -2,7 +2,7 @@
 
 public record EpisodeResource
 {
-    public int? AbsoluteEpisodeNumber { get; set; }
+    public int? AbsoluteEpisodeNumber { get; init; }
     public int SeriesId { get; init; }
     public SeriesResource? Series { get; init; }
     public int TvdbId { get; init; }

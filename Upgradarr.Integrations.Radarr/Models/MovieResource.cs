@@ -38,36 +38,3 @@ public record MovieResource
     public string? TitleSlug { get; init; }
     public bool IsAvailable { get; init; }
 }
-
-public record MovieFileResource
-{
-    public int Id { get; init; }
-    public int MovieId { get; init; }
-    public string? RelativePath { get; init; }
-    public string? Path { get; init; }
-    public long Size { get; init; }
-    public DateTimeOffset? DateAdded { get; init; }
-    public string? SceneName { get; init; }
-    public string? ReleaseGroup { get; init; }
-    public string? Edition { get; init; }
-    public IEnumerable<Language>? Languages { get; init; }
-    public QualityModel? Quality { get; init; }
-    public IEnumerable<CustomFormatResource>? CustomFormats { get; init; }
-    public int? CustomFormatScore { get; init; }
-}
-
-public record Ratings
-{
-    public RatingChild? Imdb { get; init; }
-    public RatingChild? Tmdb { get; init; }
-    public RatingChild? Metacritic { get; init; }
-    public RatingChild? RottenTomatoes { get; init; }
-    public RatingChild? Trakt { get; init; }
-}
-
-public record RatingChild
-{
-    public int Votes { get; init; }
-    public double Value { get; init; }
-    public string? Type { get; init; }
-}
