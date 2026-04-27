@@ -5,8 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 using TUnit.AspNetCore;
 using Upgradarr.Contracts;
 using Upgradarr.Data.Interfaces;
+using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Api.Tests;
+
+internal sealed class NoOpCleanupService : ICleanupService
+{
+    public Task PerformCleanupAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+}
 
 public class MyTestFactory : TestWebApplicationFactory<Program>
 {
@@ -21,6 +27,15 @@ public class MyTestFactory : TestWebApplicationFactory<Program>
                 );
             }
         );
+
+        builder.ConfigureServices(services =>
+        {
+            // Replace ICleanupService with a no-op so tests don't try to reach Sonarr/Radarr
+            var existing = services.SingleOrDefault(d => d.ServiceType == typeof(ICleanupService));
+            if (existing is not null)
+                services.Remove(existing);
+            services.AddScoped<ICleanupService, NoOpCleanupService>();
+        });
 
         base.ConfigureWebHost(builder);
     }
@@ -58,5 +73,24 @@ public class EndpointTests : WebApplicationTest<MyTestFactory, Program>
 
         var cleanups = await response.Content.ReadFromJsonAsync<List<QueueRecordDto>>();
         await Assert.That(cleanups).IsNotNull();
+    }
+
+    [Test]
+    public async Task GetPendingUpgrades_ReturnsSuccess()
+    {
+        var client = Factory.CreateClient();
+        var response = await client.GetAsync("/api/upgrade/pending");
+        response.EnsureSuccessStatusCode();
+
+        var upgrades = await response.Content.ReadFromJsonAsync<List<UpgradeStateDto>>();
+        await Assert.That(upgrades).IsNotNull();
+    }
+
+    [Test]
+    public async Task RunCleanup_ReturnsSuccess()
+    {
+        var client = Factory.CreateClient();
+        var response = await client.GetAsync("/api/cleanup/run");
+        response.EnsureSuccessStatusCode();
     }
 }
