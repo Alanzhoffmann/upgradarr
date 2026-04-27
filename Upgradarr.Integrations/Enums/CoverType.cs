@@ -8,5 +8,8 @@ public enum CoverType
     Fanart,
     Screenshot,
     Headshot,
+    Cover,
+    Disc,
+    Logo,
     Clearlogo,
 }
