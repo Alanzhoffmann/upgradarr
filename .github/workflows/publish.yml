@@ -12,6 +12,9 @@ concurrency:
 jobs:
   build:
     uses: ./.github/workflows/build.yml
+    permissions:
+      checks: write
+      pull-requests: write
 
   publish:
     needs: build
