@@ -28,6 +28,7 @@ public class FakeQueueResource : IQueueResource
     public string? ErrorMessage { get; set; }
     public int CustomFormatScore { get; set; }
     public QueueStatus Status { get; set; }
+    public TrackedDownloadState TrackedDownloadState { get; set; }
     public IEnumerable<TrackedDownloadStatusMessage>? StatusMessages { get; init; }
     public RecordSource Source { get; set; }
 }
@@ -94,7 +95,8 @@ public class CleanupServiceTests
         QueueStatus status = QueueStatus.Downloading,
         DateTimeOffset? estimatedCompletionTime = null,
         string? errorMessage = null,
-        IEnumerable<TrackedDownloadStatusMessage>? statusMessages = null
+        IEnumerable<TrackedDownloadStatusMessage>? statusMessages = null,
+        TrackedDownloadState trackedDownloadState = TrackedDownloadState.Downloading
     ) =>
         new()
         {
@@ -107,6 +109,7 @@ public class CleanupServiceTests
             EstimatedCompletionTime = estimatedCompletionTime,
             ErrorMessage = errorMessage,
             StatusMessages = statusMessages ?? [],
+            TrackedDownloadState = trackedDownloadState,
         };
 
     [Test]
@@ -262,13 +265,40 @@ public class CleanupServiceTests
     public async Task PerformCleanupAsync_SchedulesRemoval_WhenStatusIsQueued()
     {
         await using var dbContext = CreateDbContext();
-        var resource = BuildQueueResource(1, "down_queued", status: QueueStatus.Queued, estimatedCompletionTime: TimeProvider.System.GetUtcNow().AddHours(1));
+        // Queued items that are NOT actively downloading should be scheduled for removal
+        var resource = BuildQueueResource(
+            1,
+            "down_queued",
+            status: QueueStatus.Queued,
+            estimatedCompletionTime: TimeProvider.System.GetUtcNow().AddHours(1),
+            trackedDownloadState: TrackedDownloadState.DownloadFailed
+        );
         var service = CreateService(dbContext, [resource]);
 
         await service.PerformCleanupAsync();
 
         var tracked = await dbContext.TrackedDownloads.FirstAsync();
         await Assert.That(tracked.RemoveAt).IsNotNull();
+    }
+
+    [Test]
+    public async Task PerformCleanupAsync_AllowsQueued_WhenDownloading()
+    {
+        await using var dbContext = CreateDbContext();
+        // Queued items that ARE actively downloading should be allowed to progress
+        var resource = BuildQueueResource(
+            1,
+            "down_queued_downloading",
+            status: QueueStatus.Queued,
+            estimatedCompletionTime: TimeProvider.System.GetUtcNow().AddHours(1),
+            trackedDownloadState: TrackedDownloadState.Downloading
+        );
+        var service = CreateService(dbContext, [resource]);
+
+        await service.PerformCleanupAsync();
+
+        var tracked = await dbContext.TrackedDownloads.FirstAsync();
+        await Assert.That(tracked.RemoveAt).IsNull();
     }
 
     [Test]

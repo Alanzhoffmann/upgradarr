@@ -175,23 +175,43 @@ public class CleanupService : ICleanupService
 
     private bool ShouldMarkAsFailedForItem(IQueueResource item)
     {
-        if (!item.EstimatedCompletionTime.HasValue)
-        {
-            return true;
-        }
-
-        TimeSpan durationSinceEstimatedCompletion = _timeProvider.GetUtcNow() - item.EstimatedCompletionTime.Value;
-        if (durationSinceEstimatedCompletion.TotalHours > _options.MaxDownloadTimeHours)
-        {
-            return true;
-        }
-
+        // Check for stalled errors - these always indicate failure
         if (_stalledErrorMessages.Any(msg => item.HasErrorMessage(msg)))
         {
             return true;
         }
 
-        if (item.Status is QueueStatus.Failed or QueueStatus.Queued)
+        // Allow queued items that are actively downloading to progress
+        if (item.Status == QueueStatus.Queued && item.TrackedDownloadState == TrackedDownloadState.Downloading)
+        {
+            // Only mark as failed if it's been past estimated completion time for too long
+            if (item.EstimatedCompletionTime.HasValue)
+            {
+                TimeSpan timeSinceEstimatedCompletion = _timeProvider.GetUtcNow() - item.EstimatedCompletionTime.Value;
+                if (timeSinceEstimatedCompletion.TotalHours > _options.MaxDownloadTimeHours)
+                {
+                    return true;
+                }
+            }
+
+            // Otherwise allow queued downloading items to continue
+            return false;
+        }
+
+        // For all other items, check if they're past estimated completion time
+        if (!item.EstimatedCompletionTime.HasValue)
+        {
+            return true;
+        }
+
+        TimeSpan duration = _timeProvider.GetUtcNow() - item.EstimatedCompletionTime.Value;
+        if (duration.TotalHours > _options.MaxDownloadTimeHours)
+        {
+            return true;
+        }
+
+        // Mark as failed if status is Failed, or if Queued but NOT actively downloading
+        if (item.Status == QueueStatus.Failed || (item.Status == QueueStatus.Queued && item.TrackedDownloadState != TrackedDownloadState.Downloading))
         {
             return true;
         }

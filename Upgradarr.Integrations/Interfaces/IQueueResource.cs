@@ -15,6 +15,7 @@ public interface IQueueResource : IHasSource
     string? ErrorMessage { get; }
     int CustomFormatScore { get; }
     QueueStatus Status { get; }
+    TrackedDownloadState TrackedDownloadState { get; }
     public IEnumerable<TrackedDownloadStatusMessage>? StatusMessages { get; init; }
 
     public bool HasErrorMessage(string message)
