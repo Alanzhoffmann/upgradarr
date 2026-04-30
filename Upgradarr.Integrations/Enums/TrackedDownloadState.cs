@@ -3,7 +3,10 @@
 public enum TrackedDownloadState
 {
     Downloading,
+    DownloadFailed,
+    DownloadFailedPending,
     ImportBlocked,
+    ImportFailed,
     ImportPending,
     Importing,
     Imported,
