@@ -1,13 +1,24 @@
 @page "/upgrades"
 @using Upgradarr.Contracts
 @inject HttpClient Http
+@inject IJSRuntime JS
 
 <PageTitle>Upgrades</PageTitle>
 
 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
     <h1>Upgrades</h1>
-    <FluentSwitch @bind-Value="ShowPendingOnly" @bind-Value:after="LoadData">Show Pending Only</FluentSwitch>
+    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <FluentButton Appearance="Appearance.Accent" Disabled="@isRequeueing" OnClick="RequeueAll">
+            @(isRequeueing ? "Requeueing..." : "Clear Queue and Requeue All")
+        </FluentButton>
+        <FluentSwitch @bind-Value="ShowPendingOnly" @bind-Value:after="LoadData">Show Pending Only</FluentSwitch>
+    </div>
 </div>
+
+@if (!string.IsNullOrWhiteSpace(statusMessage))
+{
+    <p>@statusMessage</p>
+}
 
 @if (upgrades == null)
 {
@@ -28,6 +39,8 @@ else
 @code {
     private List<UpgradeStateDto>? upgrades;
     private bool ShowPendingOnly = true;
+    private bool isRequeueing;
+    private string? statusMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -38,5 +51,35 @@ else
     {
         var endpoint = ShowPendingOnly ? "api/upgrade/pending" : "api/upgrade";
         upgrades = await Http.GetFromJsonAsync<List<UpgradeStateDto>>(endpoint);
+    }
+
+    private async Task RequeueAll()
+    {
+        var confirmRequeue = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Clear the current upgrade queue and requeue all items, including already searched ones?"
+        );
+
+        if (!confirmRequeue)
+            return;
+
+        isRequeueing = true;
+        statusMessage = null;
+
+        try
+        {
+            var response = await Http.PostAsync("api/upgrade/requeue", null);
+            response.EnsureSuccessStatusCode();
+            statusMessage = "Queue was cleared and rebuilt.";
+            await LoadData();
+        }
+        catch
+        {
+            statusMessage = "Failed to requeue items. Check API logs for details.";
+        }
+        finally
+        {
+            isRequeueing = false;
+        }
     }
 }

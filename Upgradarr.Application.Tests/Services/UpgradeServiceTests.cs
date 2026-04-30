@@ -486,4 +486,53 @@ public class UpgradeServiceTests
         var updated = await dbContext.UpgradeStates.FirstAsync();
         await Assert.That(updated.SearchState).IsEqualTo(SearchState.Searched);
     }
+
+    [Test]
+    public async Task RequeueAllItemsAsync_ClearsQueueAndRebuildsAllItems()
+    {
+        await using var dbContext = CreateDbContext();
+
+        dbContext.UpgradeStates.Add(
+            new UpgradeState
+            {
+                ItemId = 99,
+                ItemType = ItemType.Movie,
+                SearchState = SearchState.Searched,
+                QueuePosition = 4,
+            }
+        );
+        await dbContext.SaveChangesAsync();
+
+        var manager = Mock.Of<IUpgradeManager>();
+
+        async IAsyncEnumerable<UpgradeState> GetBuildItems()
+        {
+            yield return new UpgradeState
+            {
+                ItemId = 1,
+                ItemType = ItemType.Movie,
+                SearchState = SearchState.Pending,
+            };
+            yield return new UpgradeState
+            {
+                ItemId = 2,
+                ItemType = ItemType.Movie,
+                SearchState = SearchState.Pending,
+            };
+            await Task.CompletedTask;
+        }
+
+        manager.BuildQueueItemsAsync(Any<CancellationToken>()).Returns(GetBuildItems());
+
+        var service = CreateService(dbContext, [manager.Object]);
+
+        await service.RequeueAllItemsAsync();
+
+        var updated = await dbContext.UpgradeStates.ToListAsync();
+
+        await Assert.That(updated.Count).IsEqualTo(2);
+        await Assert.That(updated.Any(u => u.ItemId == 99)).IsFalse();
+        await Assert.That(updated.Select(u => u.ItemId).ToHashSet()).IsEquivalentTo(new HashSet<int> { 1, 2 });
+        await Assert.That(updated.Select(u => u.QueuePosition).OrderBy(p => p).ToList()).IsEquivalentTo(new List<int> { 0, 1 });
+    }
 }

@@ -14,6 +14,23 @@ internal sealed class NoOpCleanupService : ICleanupService
     public Task PerformCleanupAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
+internal sealed class NoOpUpgradeService : IUpgradeService
+{
+    public Task AddItemsToFrontOfQueueAsync(IList<Upgradarr.Domain.ValueObjects.ItemToQueue> items, CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task RequeueAllItemsAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task<bool> ProcessItemUpgradeAsync(Upgradarr.Domain.Entities.UpgradeState? state, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(false);
+    }
+
+    public Task ProcessUpgradeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+}
+
 public class MyTestFactory : TestWebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -35,6 +52,12 @@ public class MyTestFactory : TestWebApplicationFactory<Program>
             if (existing is not null)
                 services.Remove(existing);
             services.AddScoped<ICleanupService, NoOpCleanupService>();
+
+            // Replace IUpgradeService with a no-op so endpoint tests stay isolated
+            var existingUpgrade = services.SingleOrDefault(d => d.ServiceType == typeof(IUpgradeService));
+            if (existingUpgrade is not null)
+                services.Remove(existingUpgrade);
+            services.AddScoped<IUpgradeService, NoOpUpgradeService>();
         });
 
         base.ConfigureWebHost(builder);
@@ -91,6 +114,14 @@ public class EndpointTests : WebApplicationTest<MyTestFactory, Program>
     {
         var client = Factory.CreateClient();
         var response = await client.GetAsync("/api/cleanup/run");
+        response.EnsureSuccessStatusCode();
+    }
+
+    [Test]
+    public async Task RequeueAllUpgrades_ReturnsSuccess()
+    {
+        var client = Factory.CreateClient();
+        var response = await client.PostAsync("/api/upgrade/requeue", null);
         response.EnsureSuccessStatusCode();
     }
 }

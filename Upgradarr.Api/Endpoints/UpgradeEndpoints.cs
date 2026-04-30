@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Upgradarr.Contracts;
 using Upgradarr.Data;
 using Upgradarr.Domain.Enums;
+using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Api.Endpoints;
 
@@ -16,6 +17,8 @@ public static class UpgradeEndpoints
             upgradeApi.MapGet("/", GetUpgradeStates).WithName("GetUpgradeStates");
 
             upgradeApi.MapGet("/pending", GetPendingUpgradeStates).WithName("GetPendingUpgradeStates");
+
+            upgradeApi.MapPost("/requeue", RequeueAllUpgradeStates).WithName("RequeueAllUpgradeStates");
         }
 
         private static async Task<IResult> GetUpgradeStates(AppDbContext dbContext) =>
@@ -48,5 +51,11 @@ public static class UpgradeEndpoints
                     })
                     .ToListAsync()
             );
+
+        private static async Task<IResult> RequeueAllUpgradeStates(IUpgradeService upgradeService, CancellationToken cancellationToken)
+        {
+            await upgradeService.RequeueAllItemsAsync(cancellationToken);
+            return Results.NoContent();
+        }
     }
 }

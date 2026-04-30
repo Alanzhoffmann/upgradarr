@@ -53,6 +53,14 @@ internal class UpgradeService : IUpgradeService
         } while (!await ProcessItemUpgradeAsync(state, cancellationToken));
     }
 
+    public async Task RequeueAllItemsAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_migrationState.IsDone)
+            return;
+
+        await ResetQueueAsync(cancellationToken);
+    }
+
     /// <summary>
     /// Gets the next item from the queue to upgrade
     /// </summary>
