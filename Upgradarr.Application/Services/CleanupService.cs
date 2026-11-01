@@ -21,7 +21,7 @@ public partial class CleanupService(
     TimeProvider timeProvider,
     IEnumerable<IQueueManager> queueManagers,
     IMigrationState migrationState
-    ) : ICleanupService
+) : ICleanupService
 {
     private readonly CleanupOptions _options = options.Value;
     private static readonly string[] _stalledErrorMessages = ["The download is stalled with no connections", "metadata"];
@@ -266,10 +266,16 @@ public partial class CleanupService(
     [LoggerMessage(Level = LogLevel.Information, Message = "Download with Title: {Title} is progressing normally. Failure state reset.")]
     public partial void LogFailureStateReset(string? title);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Queue item with Title: {Title} has lower custom format score ({CurrentScore}) than previous ({PreviousScore}). Removing.")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Queue item with Title: {Title} has lower custom format score ({CurrentScore}) than previous ({PreviousScore}). Removing."
+    )]
     public partial void LogLowerCustomFormatScore(string? title, int currentScore, int previousScore);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Queue item with Title: {Title} (DownloadId: {DownloadId}) no longer in queue. Removing tracked record.")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Queue item with Title: {Title} (DownloadId: {DownloadId}) no longer in queue. Removing tracked record."
+    )]
     public partial void LogQueueItemRemoved(string? title, string? downloadId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Queue item with Title: {Title} scheduled for removal at {RemoveAt}.")]

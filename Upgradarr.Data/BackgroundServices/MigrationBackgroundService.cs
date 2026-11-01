@@ -6,7 +6,8 @@ using Upgradarr.Data.Interfaces;
 
 namespace Upgradarr.Data.BackgroundServices;
 
-public partial class MigrationBackgroundService(IServiceProvider serviceProvider, ILogger<MigrationBackgroundService> logger, IMigrationState migrationState) : BackgroundService
+public partial class MigrationBackgroundService(IServiceProvider serviceProvider, ILogger<MigrationBackgroundService> logger, IMigrationState migrationState)
+    : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

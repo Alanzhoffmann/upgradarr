@@ -7,7 +7,8 @@ using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Integrations.Interceptors;
 
-public partial class DeleteQueueItemInterceptor(TimeProvider timeProvider, IServiceProvider serviceProvider, ILogger<DeleteQueueItemInterceptor> logger) : SaveChangesInterceptor
+public partial class DeleteQueueItemInterceptor(TimeProvider timeProvider, IServiceProvider serviceProvider, ILogger<DeleteQueueItemInterceptor> logger)
+    : SaveChangesInterceptor
 {
     private IUpgradeService UpgradeService => field ??= serviceProvider.GetRequiredService<IUpgradeService>();
 

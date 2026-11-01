@@ -14,7 +14,10 @@ using Upgradarr.Integrations.Radarr.Models;
 
 namespace Upgradarr.Integrations.Radarr;
 
-public partial class RadarrClient(HttpClient client, ILogger<RadarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache) : QueueManagerBase<RadarrQueueResource>, IQueueManager, IUpgradeManager
+public partial class RadarrClient(HttpClient client, ILogger<RadarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
+    : QueueManagerBase<RadarrQueueResource>,
+        IQueueManager,
+        IUpgradeManager
 {
     public RecordSource SourceName => RecordSource.Radarr;
 

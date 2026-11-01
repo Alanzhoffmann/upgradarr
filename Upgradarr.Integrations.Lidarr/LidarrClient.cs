@@ -14,7 +14,10 @@ using Upgradarr.Integrations.Models;
 
 namespace Upgradarr.Integrations.Lidarr;
 
-public partial class LidarrClient(HttpClient client, ILogger<LidarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache) : QueueManagerBase<LidarrQueueResource>, IQueueManager, IUpgradeManager
+public partial class LidarrClient(HttpClient client, ILogger<LidarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
+    : QueueManagerBase<LidarrQueueResource>,
+        IQueueManager,
+        IUpgradeManager
 {
     public RecordSource SourceName => RecordSource.Lidarr;
 
@@ -402,7 +405,6 @@ public partial class LidarrClient(HttpClient client, ILogger<LidarrClient> logge
     [LoggerMessage(Level = LogLevel.Error, Message = "Error deleting queue item {ItemId}")]
     public partial void LogErrorDeletingQueueItem(Exception ex, int itemId);
 }
-
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(IList<ArtistResource>))]

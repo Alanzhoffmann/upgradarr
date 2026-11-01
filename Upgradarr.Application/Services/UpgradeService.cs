@@ -16,7 +16,7 @@ internal partial class UpgradeService(
     ILogger<UpgradeService> logger,
     TimeProvider timeProvider,
     IMigrationState migrationState
-    ) : IUpgradeService
+) : IUpgradeService
 {
     public async Task ProcessUpgradeAsync(CancellationToken cancellationToken = default)
     {

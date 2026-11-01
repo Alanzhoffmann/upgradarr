@@ -14,7 +14,10 @@ using Upgradarr.Integrations.Sonarr.Models;
 
 namespace Upgradarr.Integrations.Sonarr;
 
-public partial class SonarrClient(HttpClient client, ILogger<SonarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache) : QueueManagerBase<SonarrQueueResource>, IQueueManager, IUpgradeManager
+public partial class SonarrClient(HttpClient client, ILogger<SonarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
+    : QueueManagerBase<SonarrQueueResource>,
+        IQueueManager,
+        IUpgradeManager
 {
     public RecordSource SourceName => RecordSource.Sonarr;
 
@@ -559,13 +562,19 @@ public partial class SonarrClient(HttpClient client, ILogger<SonarrClient> logge
     [LoggerMessage(Level = LogLevel.Information, Message = "Season {Season} in series {SeriesTitle} (ID: {SeriesId}) has ongoing downloads, skipping")]
     public partial void LogSeasonHasOngoingDownloads(int season, string seriesTitle, int seriesId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Episode {SeriesTitle} S{SeasonNumber:D2}E{EpisodeNumber:D2} (ID: {EpisodeId}) is currently downloading, skipping")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Episode {SeriesTitle} S{SeasonNumber:D2}E{EpisodeNumber:D2} (ID: {EpisodeId}) is currently downloading, skipping"
+    )]
     public partial void LogEpisodeIsDownloading(string seriesTitle, int seasonNumber, int episodeNumber, int episodeId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Series {SeriesTitle} (ID: {SeriesId}) is no longer monitored, removing from queue")]
     public partial void LogSeriesNoLongerMonitored(string seriesTitle, int seriesId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Episode {SeriesTitle} S{SeasonNumber:D2}E{EpisodeNumber:D2} (ID: {EpisodeId}) not found or unmonitored, removing from queue")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Episode {SeriesTitle} S{SeasonNumber:D2}E{EpisodeNumber:D2} (ID: {EpisodeId}) not found or unmonitored, removing from queue"
+    )]
     public partial void LogEpisodeNotFoundOrUnmonitored(string seriesTitle, int seasonNumber, int episodeNumber, int episodeId);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Error deleting queue item {ItemId}")]

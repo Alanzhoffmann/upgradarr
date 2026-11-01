@@ -7,7 +7,11 @@ using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Application.BackgroundServices;
 
-public partial class CleanupBackgroundService(ILogger<CleanupBackgroundService> logger, IOptionsMonitor<CleanupOptions> optionsMonitor, IServiceProvider serviceProvider) : BackgroundService
+public partial class CleanupBackgroundService(
+    ILogger<CleanupBackgroundService> logger,
+    IOptionsMonitor<CleanupOptions> optionsMonitor,
+    IServiceProvider serviceProvider
+) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
