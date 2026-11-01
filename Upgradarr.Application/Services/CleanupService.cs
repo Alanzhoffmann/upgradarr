@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,15 +14,16 @@ using Upgradarr.Integrations.Interfaces;
 
 namespace Upgradarr.Application.Services;
 
-public class CleanupService : ICleanupService
+public partial class CleanupService(
+    IOptionsSnapshot<CleanupOptions> options,
+    ILogger<CleanupService> logger,
+    AppDbContext dbContext,
+    TimeProvider timeProvider,
+    IEnumerable<IQueueManager> queueManagers,
+    IMigrationState migrationState
+    ) : ICleanupService
 {
-    private readonly CleanupOptions _options;
-    private readonly ILogger<CleanupService> _logger;
-    private readonly AppDbContext _dbContext;
-    private readonly TimeProvider _timeProvider;
-    private readonly IEnumerable<IQueueManager> _queueManagers;
-    private readonly IMigrationState _migrationState;
-
+    private readonly CleanupOptions _options = options.Value;
     private static readonly string[] _stalledErrorMessages = ["The download is stalled with no connections", "metadata"];
 
     private static readonly string[] _immediateRemovalErrorMessages =
@@ -53,30 +54,13 @@ public class CleanupService : ICleanupService
         ".wsh",
     ];
 
-    public CleanupService(
-        IOptionsSnapshot<CleanupOptions> options,
-        ILogger<CleanupService> logger,
-        AppDbContext dbContext,
-        TimeProvider timeProvider,
-        IEnumerable<IQueueManager> queueManagers,
-        IMigrationState migrationState
-    )
-    {
-        _options = options.Value;
-        _logger = logger;
-        _dbContext = dbContext;
-        _timeProvider = timeProvider;
-        _queueManagers = queueManagers;
-        _migrationState = migrationState;
-    }
-
     public async Task PerformCleanupAsync(CancellationToken cancellationToken = default)
     {
-        if (!_migrationState.IsDone)
+        if (!migrationState.IsDone)
             return;
 
         var queueItems = GetAllQueueItems(cancellationToken);
-        var trackedDownloads = await _dbContext.TrackedDownloads.ToDictionaryAsync(r => r.DownloadId, cancellationToken);
+        var trackedDownloads = await dbContext.TrackedDownloads.ToDictionaryAsync(r => r.DownloadId, cancellationToken);
         var currentQueueDownloadIds = new HashSet<string>();
 
         await foreach (var item in queueItems)
@@ -104,23 +88,23 @@ public class CleanupService : ICleanupService
                     Source = item.Source,
                     ItemScores = [new QueueItemScore { ItemId = item.Id, CustomFormatScore = item.CustomFormatScore }],
                 };
-                _dbContext.TrackedDownloads.Add(queueRecord);
+                dbContext.TrackedDownloads.Add(queueRecord);
                 trackedDownloads[item.DownloadId] = queueRecord;
             }
 
             await ProcessQueueItemAsync(item, queueRecord, cancellationToken);
-            _logger.LogRecord(item);
+            LogRecord(item);
         }
 
         // Remove tracked downloads for items no longer in queue
         var removedItems = trackedDownloads.Values.Where(r => !currentQueueDownloadIds.Contains(r.DownloadId)).ToList();
         foreach (var removedItem in removedItems)
         {
-            _logger.LogQueueItemRemoved(removedItem.Title, removedItem.DownloadId);
-            _dbContext.TrackedDownloads.Remove(removedItem);
+            LogQueueItemRemoved(removedItem.Title, removedItem.DownloadId);
+            dbContext.TrackedDownloads.Remove(removedItem);
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task ProcessQueueItemAsync(IQueueResource item, QueueRecord queueRecord, CancellationToken cancellationToken)
@@ -139,16 +123,16 @@ public class CleanupService : ICleanupService
         // Check for immediate removal conditions
         if (await ShouldRemoveImmediatelyAsync(item, cancellationToken))
         {
-            _logger.LogCleaningUpQueueItem(item.Title);
-            queueRecord.MarkForRemoval(_timeProvider.GetUtcNow());
+            LogCleaningUpQueueItem(item.Title);
+            queueRecord.MarkForRemoval(timeProvider.GetUtcNow());
             return;
         }
 
         // Skip cleanup for items added less than an hour ago
-        TimeSpan durationSinceAdded = _timeProvider.GetUtcNow() - (item.Added ?? DateTimeOffset.MinValue);
+        TimeSpan durationSinceAdded = timeProvider.GetUtcNow() - (item.Added ?? DateTimeOffset.MinValue);
         if (durationSinceAdded.TotalHours < 1)
         {
-            _logger.LogSkippingRecentQueueItem(item.Title);
+            LogSkippingRecentQueueItem(item.Title);
             queueRecord.ClearRemoval();
             return;
         }
@@ -159,16 +143,16 @@ public class CleanupService : ICleanupService
             if (!queueRecord.RemoveAt.HasValue)
             {
                 // First time marking as failed - schedule removal for future
-                var futureRemovalTime = _timeProvider.GetUtcNow().AddHours(_options.FailedDownloadCleanupHours);
+                var futureRemovalTime = timeProvider.GetUtcNow().AddHours(_options.FailedDownloadCleanupHours);
                 queueRecord.MarkForRemoval(futureRemovalTime);
-                _logger.LogScheduledForRemoval(item.Title, futureRemovalTime);
+                LogScheduledForRemoval(item.Title, futureRemovalTime);
             }
             // If already scheduled, keep existing removal time
         }
         else if (queueRecord.RemoveAt.HasValue)
         {
             // Item is no longer failing, clear scheduled removal
-            _logger.LogFailureStateReset(item.Title);
+            LogFailureStateReset(item.Title);
             queueRecord.ClearRemoval();
         }
     }
@@ -187,7 +171,7 @@ public class CleanupService : ICleanupService
             // Only mark as failed if it's been past estimated completion time for too long
             if (item.EstimatedCompletionTime.HasValue)
             {
-                TimeSpan timeSinceEstimatedCompletion = _timeProvider.GetUtcNow() - item.EstimatedCompletionTime.Value;
+                TimeSpan timeSinceEstimatedCompletion = timeProvider.GetUtcNow() - item.EstimatedCompletionTime.Value;
                 if (timeSinceEstimatedCompletion.TotalHours > _options.MaxDownloadTimeHours)
                 {
                     return true;
@@ -204,7 +188,7 @@ public class CleanupService : ICleanupService
             return true;
         }
 
-        TimeSpan duration = _timeProvider.GetUtcNow() - item.EstimatedCompletionTime.Value;
+        TimeSpan duration = timeProvider.GetUtcNow() - item.EstimatedCompletionTime.Value;
         if (duration.TotalHours > _options.MaxDownloadTimeHours)
         {
             return true;
@@ -224,7 +208,7 @@ public class CleanupService : ICleanupService
         // Check max age - remove if too old
         if (item.Added.HasValue)
         {
-            TimeSpan durationSinceAdded = _timeProvider.GetUtcNow() - item.Added.Value;
+            TimeSpan durationSinceAdded = timeProvider.GetUtcNow() - item.Added.Value;
             if (durationSinceAdded.TotalDays > _options.MaxItemAgeDays)
             {
                 return true;
@@ -241,10 +225,10 @@ public class CleanupService : ICleanupService
             return true;
         }
 
-        var queueManager = _queueManagers.FirstOrDefault(m => m.SourceName == item.Source);
+        var queueManager = queueManagers.FirstOrDefault(m => m.SourceName == item.Source);
         if (queueManager is null)
         {
-            _logger.LogErrorRemovingItemFromQueue(item.Source);
+            LogErrorRemovingItemFromQueue(item.Source);
             return false;
         }
 
@@ -254,13 +238,13 @@ public class CleanupService : ICleanupService
             return false;
         }
 
-        _logger.LogLowerCustomFormatScore(item.Title, item.CustomFormatScore, downloadedScore);
+        LogLowerCustomFormatScore(item.Title, item.CustomFormatScore, downloadedScore);
         return true;
     }
 
     private async IAsyncEnumerable<IQueueResource> GetAllQueueItems([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        foreach (var queueManager in _queueManagers)
+        foreach (var queueManager in queueManagers)
         {
             var items = queueManager.GetAllQueueItems(cancellationToken);
             await foreach (var item in items.WithCancellation(cancellationToken))
@@ -269,43 +253,28 @@ public class CleanupService : ICleanupService
             }
         }
     }
-}
 
-internal static partial class CleanupLoggerExtensions
-{
-    [LoggerMessage(EventId = 0, Level = LogLevel.Information, Message = "Skipping cleanup for queue item with Title: {Title} added less than an hour ago.")]
-    public static partial void LogSkippingRecentQueueItem(this ILogger logger, string? title);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Skipping cleanup for queue item with Title: {Title} added less than an hour ago.")]
+    public partial void LogSkippingRecentQueueItem(string? title);
 
-    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Cleaning up queue item with Title: {Title}.")]
-    public static partial void LogCleaningUpQueueItem(this ILogger logger, string? title);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Cleaning up queue item with Title: {Title}.")]
+    public partial void LogCleaningUpQueueItem(string? title);
 
-    [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Record: {Record}")]
-    public static partial void LogRecord(this ILogger logger, IQueueResource record);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Record: {Record}")]
+    public partial void LogRecord(IQueueResource record);
 
-    [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Download with Title: {Title} is progressing normally. Failure state reset.")]
-    public static partial void LogFailureStateReset(this ILogger logger, string? title);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Download with Title: {Title} is progressing normally. Failure state reset.")]
+    public partial void LogFailureStateReset(string? title);
 
-    [LoggerMessage(
-        EventId = 4,
-        Level = LogLevel.Information,
-        Message = "Queue item with Title: {Title} has lower custom format score ({CurrentScore}) than previous ({PreviousScore}). Removing."
-    )]
-    public static partial void LogLowerCustomFormatScore(this ILogger logger, string? title, int currentScore, int previousScore);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Queue item with Title: {Title} has lower custom format score ({CurrentScore}) than previous ({PreviousScore}). Removing.")]
+    public partial void LogLowerCustomFormatScore(string? title, int currentScore, int previousScore);
 
-    [LoggerMessage(
-        EventId = 5,
-        Level = LogLevel.Information,
-        Message = "Queue item with Title: {Title} (DownloadId: {DownloadId}) no longer in queue. Removing tracked record."
-    )]
-    public static partial void LogQueueItemRemoved(this ILogger logger, string? title, string? downloadId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Queue item with Title: {Title} (DownloadId: {DownloadId}) no longer in queue. Removing tracked record.")]
+    public partial void LogQueueItemRemoved(string? title, string? downloadId);
 
-    [LoggerMessage(EventId = 6, Level = LogLevel.Information, Message = "Queue item with Title: {Title} scheduled for removal at {RemoveAt}.")]
-    public static partial void LogScheduledForRemoval(this ILogger logger, string? title, DateTimeOffset removeAt);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Queue item with Title: {Title} scheduled for removal at {RemoveAt}.")]
+    public partial void LogScheduledForRemoval(string? title, DateTimeOffset removeAt);
 
-    [LoggerMessage(
-        EventId = 7,
-        Level = LogLevel.Error,
-        Message = "No IQueueManager found for source {Source}. Cannot determine if item should be removed immediately."
-    )]
-    public static partial void LogErrorRemovingItemFromQueue(this ILogger logger, RecordSource source);
+    [LoggerMessage(Level = LogLevel.Error, Message = "No IQueueManager found for source {Source}. Cannot determine if item should be removed immediately.")]
+    public partial void LogErrorRemovingItemFromQueue(RecordSource source);
 }

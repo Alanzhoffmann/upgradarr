@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -10,25 +10,12 @@ using Upgradarr.Domain.Interfaces;
 using Upgradarr.Domain.ValueObjects;
 using Upgradarr.Integrations.Interfaces;
 using Upgradarr.Integrations.Models;
-using Upgradarr.Integrations.Sonarr.Extensions;
 using Upgradarr.Integrations.Sonarr.Models;
 
 namespace Upgradarr.Integrations.Sonarr;
 
-public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager, IUpgradeManager
+public partial class SonarrClient(HttpClient client, ILogger<SonarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache) : QueueManagerBase<SonarrQueueResource>, IQueueManager, IUpgradeManager
 {
-    private readonly HttpClient _client;
-    private readonly TimeProvider _timeProvider;
-    private readonly HybridCache _hybridCache;
-
-    public SonarrClient(HttpClient client, ILogger<SonarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
-        : base(logger)
-    {
-        _client = client;
-        _timeProvider = timeProvider;
-        _hybridCache = hybridCache;
-    }
-
     public RecordSource SourceName => RecordSource.Sonarr;
 
     public bool CanHandle(ItemType itemType) => itemType is ItemType.Series or ItemType.Season or ItemType.Episode;
@@ -67,7 +54,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
     private async Task<List<UpgradeState>> BuildSeriesQueueItemsAsync(SeriesResource s, CancellationToken cancellationToken)
     {
         var queueItems = new List<UpgradeState>();
-        if (s.FirstAired.HasValue && s.FirstAired.Value > _timeProvider.GetUtcNow())
+        if (s.FirstAired.HasValue && s.FirstAired.Value > timeProvider.GetUtcNow())
             return queueItems;
 
         var seriesItem = new UpgradeState
@@ -78,7 +65,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
             SearchState = SearchState.Pending,
             IsMonitored = true,
             ReleaseDate = s.FirstAired,
-            CreatedAt = _timeProvider.GetUtcNow(),
+            CreatedAt = timeProvider.GetUtcNow(),
         };
         queueItems.Add(seriesItem);
 
@@ -99,13 +86,13 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
                 SearchState = SearchState.Pending,
                 IsMonitored = true,
                 ReleaseDate = seasonGroup.Min(e => e.AirDateUtc),
-                CreatedAt = _timeProvider.GetUtcNow(),
+                CreatedAt = timeProvider.GetUtcNow(),
             };
             queueItems.Add(seasonItem);
 
             foreach (var episode in seasonGroup.OrderBy(e => e.EpisodeNumber))
             {
-                if (episode.AirDateUtc.HasValue && episode.AirDateUtc.Value > _timeProvider.GetUtcNow())
+                if (episode.AirDateUtc.HasValue && episode.AirDateUtc.Value > timeProvider.GetUtcNow())
                     continue;
 
                 bool isMissing = !episode.HasFile;
@@ -122,7 +109,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
                     IsMonitored = true,
                     IsMissing = isMissing,
                     ReleaseDate = episode.AirDateUtc,
-                    CreatedAt = _timeProvider.GetUtcNow(),
+                    CreatedAt = timeProvider.GetUtcNow(),
                 };
                 queueItems.Add(episodeItem);
 
@@ -155,23 +142,23 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
             var series = await GetSeriesByIdAsync(state.ItemId, cancellationToken: cancellationToken);
             if (series is null)
             {
-                _logger.LogSeriesNotFound(state.ItemId);
+                LogSeriesNotFound(state.ItemId);
                 return UpgradeActionResult.Searched;
             }
 
             if (!series.Monitored)
             {
-                _logger.LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ItemId);
+                LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ItemId);
                 return UpgradeActionResult.Removed;
             }
 
-            _logger.LogSearchingForSeries(series.Title ?? "Unknown");
+            LogSearchingForSeries(series.Title ?? "Unknown");
             await SearchSeriesAsync(state.ItemId, cancellationToken);
             return UpgradeActionResult.Searched;
         }
         catch (Exception ex)
         {
-            _logger.LogErrorProcessingSeriesUpgrade(ex, state.ItemId);
+            LogErrorProcessingSeriesUpgrade(ex, state.ItemId);
             return UpgradeActionResult.Skipped;
         }
     }
@@ -189,7 +176,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
 
             if (!series.Monitored)
             {
-                _logger.LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ParentSeriesId.Value);
+                LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ParentSeriesId.Value);
                 return UpgradeActionResult.Removed;
             }
 
@@ -198,13 +185,13 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
                 return UpgradeActionResult.Skipped;
             }
 
-            _logger.LogSearchingForSeason(series.Title ?? "Unknown", state.SeasonNumber.Value);
+            LogSearchingForSeason(series.Title ?? "Unknown", state.SeasonNumber.Value);
             await SearchSeasonAsync(state.ParentSeriesId.Value, state.SeasonNumber.Value, cancellationToken);
             return UpgradeActionResult.Searched;
         }
         catch (Exception ex)
         {
-            _logger.LogErrorProcessingSeasonUpgrade(ex, state.ParentSeriesId ?? 0, state.SeasonNumber ?? 0);
+            LogErrorProcessingSeasonUpgrade(ex, state.ParentSeriesId ?? 0, state.SeasonNumber ?? 0);
             return UpgradeActionResult.Skipped;
         }
     }
@@ -222,7 +209,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
 
             if (!series.Monitored)
             {
-                _logger.LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ParentSeriesId.Value);
+                LogSeriesNoLongerMonitored(series.Title ?? "Unknown", state.ParentSeriesId.Value);
                 return UpgradeActionResult.Removed;
             }
 
@@ -235,7 +222,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
 
             if (episode is null || !episode.Monitored)
             {
-                _logger.LogEpisodeNotFoundOrUnmonitored(series.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
+                LogEpisodeNotFoundOrUnmonitored(series.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
                 return UpgradeActionResult.Removed;
             }
 
@@ -244,7 +231,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
                 return UpgradeActionResult.Skipped;
             }
 
-            _logger.LogSearchingForEpisode(
+            LogSearchingForEpisode(
                 series.Title ?? "Unknown",
                 state.SeasonNumber.Value.ToString().PadLeft(2, '0'),
                 state.EpisodeNumber.Value.ToString().PadLeft(2, '0')
@@ -254,7 +241,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
         }
         catch (Exception ex)
         {
-            _logger.LogErrorProcessingEpisodeUpgrade(ex, state.ItemId);
+            LogErrorProcessingEpisodeUpgrade(ex, state.ItemId);
             return UpgradeActionResult.Skipped;
         }
     }
@@ -275,7 +262,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
         var queue = GetAllQueueItems(cancellationToken);
         if (await queue.AnyAsync(q => q is SonarrQueueResource sonarrResource && sonarrResource.SeriesId == state.ItemId, cancellationToken: cancellationToken))
         {
-            _logger.LogSeriesHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
+            LogSeriesHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
             return true;
         }
         return false;
@@ -297,7 +284,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
             )
         )
         {
-            _logger.LogSeasonHasOngoingDownloads(state.SeasonNumber.Value, state.Title ?? "Unknown", state.ParentSeriesId.Value);
+            LogSeasonHasOngoingDownloads(state.SeasonNumber.Value, state.Title ?? "Unknown", state.ParentSeriesId.Value);
             return true;
         }
         return false;
@@ -313,16 +300,16 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
             await queue.AnyAsync(q => q is SonarrQueueResource sonarrResource && sonarrResource.EpisodeId == state.ItemId, cancellationToken: cancellationToken)
         )
         {
-            _logger.LogEpisodeIsDownloading(state.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
+            LogEpisodeIsDownloading(state.Title ?? "Unknown", state.SeasonNumber.Value, state.EpisodeNumber.Value, state.ItemId);
             return true;
         }
         return false;
     }
 
     public async Task<IList<SeriesResource>> GetSeriesAsync(CancellationToken cancellationToken = default) =>
-        await _hybridCache.GetOrCreateAsync(
+        await hybridCache.GetOrCreateAsync(
             "sonarr_series",
-            async ct => await _client.GetFromJsonAsync("/api/v3/series", SonarrClientJsonSerializerContext.Default.IListSeriesResource, ct) ?? [],
+            async ct => await client.GetFromJsonAsync("/api/v3/series", SonarrClientJsonSerializerContext.Default.IListSeriesResource, ct) ?? [],
             options: null,
             tags: ["sonarr", "sonarr_series"],
             cancellationToken: cancellationToken
@@ -331,10 +318,10 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
     public async Task<SeriesResource?> GetSeriesByIdAsync(int id, bool includeSeasonImages = false, CancellationToken cancellationToken = default)
     {
         var queryBuilder = new QueryBuilder { { "includeSeasonImages", includeSeasonImages.ToString().ToLower() } };
-        return await _hybridCache.GetOrCreateAsync(
+        return await hybridCache.GetOrCreateAsync(
             $"sonarr_series_{id}_{includeSeasonImages}",
             async ct =>
-                await _client.GetFromJsonAsync(
+                await client.GetFromJsonAsync(
                     $"/api/v3/series/{id}{queryBuilder.ToQueryString()}",
                     SonarrClientJsonSerializerContext.Default.SeriesResource,
                     ct
@@ -371,7 +358,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
             foreach (var id in episodeIds)
                 queryBuilder.Add("episodeIds", id.ToString());
 
-        return await _client.GetFromJsonAsync(
+        return await client.GetFromJsonAsync(
                 $"/api/v3/episode{queryBuilder.ToQueryString()}",
                 SonarrClientJsonSerializerContext.Default.IListEpisodeResource,
                 cancellationToken
@@ -379,7 +366,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
     }
 
     public async Task<EpisodeResource?> GetEpisodeByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        await _client.GetFromJsonAsync($"/api/v3/episode/{id}", SonarrClientJsonSerializerContext.Default.EpisodeResource, cancellationToken);
+        await client.GetFromJsonAsync($"/api/v3/episode/{id}", SonarrClientJsonSerializerContext.Default.EpisodeResource, cancellationToken);
 
     public async Task<PagingResource<SonarrQueueResource>> GetQueueAsync(
         int page = 1,
@@ -401,7 +388,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
         if (includeEpisode)
             queryBuilder.Add("includeEpisode", "true");
 
-        return await _client.GetFromJsonAsync(
+        return await client.GetFromJsonAsync(
                 $"/api/v3/queue{queryBuilder.ToQueryString()}",
                 SonarrClientJsonSerializerContext.Default.PagingResourceSonarrQueueResource,
                 cancellationToken
@@ -424,13 +411,13 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
         };
         try
         {
-            var response = await _client.DeleteAsync($"/api/v3/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
+            var response = await client.DeleteAsync($"/api/v3/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
             response.EnsureSuccessStatusCode();
-            await _hybridCache.RemoveByTagAsync("sonarr", cancellationToken);
+            await hybridCache.RemoveByTagAsync("sonarr", cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogErrorDeletingQueueItem(ex, itemId);
+            LogErrorDeletingQueueItem(ex, itemId);
             return false;
         }
         return true;
@@ -439,7 +426,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
     public async Task<CommandResource?> SearchSeriesAsync(int seriesId, CancellationToken cancellationToken = default)
     {
         var command = new SeriesSearchCommand { SeriesId = seriesId };
-        var response = await _client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync(
             "/api/v3/command",
             command,
             SonarrClientJsonSerializerContext.Default.SeriesSearchCommand,
@@ -451,7 +438,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
     public async Task<CommandResource?> SearchSeasonAsync(int seriesId, int seasonNumber, CancellationToken cancellationToken = default)
     {
         var command = new SeasonSearchCommand { SeriesId = seriesId, SeasonNumber = seasonNumber };
-        var response = await _client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync(
             "/api/v3/command",
             command,
             SonarrClientJsonSerializerContext.Default.SeasonSearchCommand,
@@ -463,7 +450,7 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
     public async Task<CommandResource?> SearchEpisodesAsync(IList<int> episodeIds, CancellationToken cancellationToken = default)
     {
         var command = new EpisodeSearchCommand { EpisodeIds = episodeIds };
-        var response = await _client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync(
             "/api/v3/command",
             command,
             SonarrClientJsonSerializerContext.Default.EpisodeSearchCommand,
@@ -544,6 +531,45 @@ public class SonarrClient : QueueManagerBase<SonarrQueueResource>, IQueueManager
 
         return (shouldRemove, downloadedScore);
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Series {SeriesId} not found")]
+    public partial void LogSeriesNotFound(int seriesId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Searching for series: {SeriesTitle}")]
+    public partial void LogSearchingForSeries(string seriesTitle);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Searching for series {SeriesTitle} season {Season}")]
+    public partial void LogSearchingForSeason(string seriesTitle, int season);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Searching for series {SeriesTitle} S{Season}E{Episode}")]
+    public partial void LogSearchingForEpisode(string seriesTitle, string season, string episode);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing series upgrade for {SeriesId}")]
+    public partial void LogErrorProcessingSeriesUpgrade(Exception ex, int seriesId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing season upgrade for series {SeriesId} season {Season}")]
+    public partial void LogErrorProcessingSeasonUpgrade(Exception ex, int seriesId, int season);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing episode upgrade for episode {EpisodeId}")]
+    public partial void LogErrorProcessingEpisodeUpgrade(Exception ex, int episodeId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Series {SeriesTitle} (ID: {SeriesId}) has ongoing downloads, skipping")]
+    public partial void LogSeriesHasOngoingDownloads(string seriesTitle, int seriesId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Season {Season} in series {SeriesTitle} (ID: {SeriesId}) has ongoing downloads, skipping")]
+    public partial void LogSeasonHasOngoingDownloads(int season, string seriesTitle, int seriesId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Episode {SeriesTitle} S{SeasonNumber:D2}E{EpisodeNumber:D2} (ID: {EpisodeId}) is currently downloading, skipping")]
+    public partial void LogEpisodeIsDownloading(string seriesTitle, int seasonNumber, int episodeNumber, int episodeId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Series {SeriesTitle} (ID: {SeriesId}) is no longer monitored, removing from queue")]
+    public partial void LogSeriesNoLongerMonitored(string seriesTitle, int seriesId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Episode {SeriesTitle} S{SeasonNumber:D2}E{EpisodeNumber:D2} (ID: {EpisodeId}) not found or unmonitored, removing from queue")]
+    public partial void LogEpisodeNotFoundOrUnmonitored(string seriesTitle, int seasonNumber, int episodeNumber, int episodeId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error deleting queue item {ItemId}")]
+    public partial void LogErrorDeletingQueueItem(Exception ex, int itemId);
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = true)]

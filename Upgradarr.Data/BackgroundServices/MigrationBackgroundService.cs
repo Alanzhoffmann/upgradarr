@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -6,25 +6,13 @@ using Upgradarr.Data.Interfaces;
 
 namespace Upgradarr.Data.BackgroundServices;
 
-public class MigrationBackgroundService : BackgroundService
+public partial class MigrationBackgroundService(IServiceProvider serviceProvider, ILogger<MigrationBackgroundService> logger, IMigrationState migrationState) : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<MigrationBackgroundService> _logger;
-
-    private readonly IMigrationState _migrationState;
-
-    public MigrationBackgroundService(IServiceProvider serviceProvider, ILogger<MigrationBackgroundService> logger, IMigrationState migrationState)
-    {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-        _migrationState = migrationState;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
         {
-            _logger.LogWaitingForMigrations();
+            LogWaitingForMigrations();
             try
             {
                 if (!Directory.Exists("/config"))
@@ -37,27 +25,24 @@ public class MigrationBackgroundService : BackgroundService
                 // Ignored, let EF fail if inaccessible
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = serviceProvider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await dbContext.Database.MigrateAsync(stoppingToken);
-            _logger.LogMigrationsCompleted();
-            _migrationState.IsDone = true;
+            LogMigrationsCompleted();
+            migrationState.IsDone = true;
         }
         catch (Exception ex)
         {
-            _logger.LogMigrationError(ex);
+            LogMigrationError(ex);
         }
     }
-}
 
-internal static partial class MigrationLoggerExtensions
-{
-    [LoggerMessage(EventId = 0, Level = LogLevel.Information, Message = "Waiting for database migrations to complete...")]
-    public static partial void LogWaitingForMigrations(this ILogger logger);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Waiting for database migrations to complete...")]
+    public partial void LogWaitingForMigrations();
 
-    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Database migrations completed successfully.")]
-    public static partial void LogMigrationsCompleted(this ILogger logger);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Database migrations completed successfully.")]
+    public partial void LogMigrationsCompleted();
 
-    [LoggerMessage(EventId = 2, Level = LogLevel.Critical, Message = "Failed to apply database migrations.")]
-    public static partial void LogMigrationError(this ILogger logger, Exception ex);
+    [LoggerMessage(Level = LogLevel.Critical, Message = "Failed to apply database migrations.")]
+    public partial void LogMigrationError(Exception ex);
 }

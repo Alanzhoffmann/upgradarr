@@ -1,5 +1,4 @@
-using System.Runtime.CompilerServices;
-using Microsoft.Extensions.Logging;
+﻿using System.Runtime.CompilerServices;
 using Upgradarr.Domain.Entities;
 using Upgradarr.Domain.ValueObjects;
 using Upgradarr.Integrations.Interfaces;
@@ -10,13 +9,6 @@ namespace Upgradarr.Integrations;
 public abstract class QueueManagerBase<TQueueResource>
     where TQueueResource : IQueueResource
 {
-    protected readonly ILogger _logger;
-
-    protected QueueManagerBase(ILogger logger)
-    {
-        _logger = logger;
-    }
-
     public async ValueTask<(bool AllDeleted, List<ItemToQueue> ItemsToRequeue)> DeleteQueueItemsAsync(
         QueueRecord record,
         CancellationToken cancellationToken = default

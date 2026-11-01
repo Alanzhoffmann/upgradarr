@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -10,25 +10,12 @@ using Upgradarr.Domain.Interfaces;
 using Upgradarr.Domain.ValueObjects;
 using Upgradarr.Integrations.Interfaces;
 using Upgradarr.Integrations.Models;
-using Upgradarr.Integrations.Radarr.Extensions;
 using Upgradarr.Integrations.Radarr.Models;
 
 namespace Upgradarr.Integrations.Radarr;
 
-public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager, IUpgradeManager
+public partial class RadarrClient(HttpClient client, ILogger<RadarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache) : QueueManagerBase<RadarrQueueResource>, IQueueManager, IUpgradeManager
 {
-    private readonly HttpClient _client;
-    private readonly TimeProvider _timeProvider;
-    private readonly HybridCache _hybridCache;
-
-    public RadarrClient(HttpClient client, ILogger<RadarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
-        : base(logger)
-    {
-        _client = client;
-        _timeProvider = timeProvider;
-        _hybridCache = hybridCache;
-    }
-
     public RecordSource SourceName => RecordSource.Radarr;
 
     public bool CanHandle(ItemType itemType) => itemType == ItemType.Movie;
@@ -39,7 +26,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
 
         foreach (var m in movies.Where(m => m.Monitored))
         {
-            if (m.InCinemas.HasValue && m.InCinemas.Value > _timeProvider.GetUtcNow())
+            if (m.InCinemas.HasValue && m.InCinemas.Value > timeProvider.GetUtcNow())
                 continue;
 
             yield return new UpgradeState
@@ -51,7 +38,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
                 IsMonitored = true,
                 IsMissing = !m.HasFile,
                 ReleaseDate = m.InCinemas,
-                CreatedAt = _timeProvider.GetUtcNow(),
+                CreatedAt = timeProvider.GetUtcNow(),
             };
         }
     }
@@ -65,7 +52,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
 
         foreach (var m in movies.Where(m => m.Monitored && !existingIds.Contains(m.Id)))
         {
-            if (m.InCinemas.HasValue && m.InCinemas.Value > _timeProvider.GetUtcNow())
+            if (m.InCinemas.HasValue && m.InCinemas.Value > timeProvider.GetUtcNow())
                 continue;
 
             yield return new UpgradeState
@@ -77,7 +64,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
                 IsMonitored = true,
                 IsMissing = !m.HasFile,
                 ReleaseDate = m.InCinemas,
-                CreatedAt = _timeProvider.GetUtcNow(),
+                CreatedAt = timeProvider.GetUtcNow(),
             };
         }
     }
@@ -89,23 +76,23 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
             var movie = await GetMovieByIdAsync(state.ItemId, cancellationToken);
             if (movie is null)
             {
-                _logger.LogMovieNotFound(state.ItemId);
+                LogMovieNotFound(state.ItemId);
                 return UpgradeActionResult.Searched; // Treats as searched/completed so it doesn't loop forever
             }
 
             if (!movie.Monitored)
             {
-                _logger.LogMovieNoLongerMonitored(movie.Title ?? "Unknown", state.ItemId);
+                LogMovieNoLongerMonitored(movie.Title ?? "Unknown", state.ItemId);
                 return UpgradeActionResult.Removed;
             }
 
-            _logger.LogSearchingForMovie(movie.Title ?? "Unknown");
+            LogSearchingForMovie(movie.Title ?? "Unknown");
             await SearchMoviesAsync([state.ItemId], cancellationToken);
             return UpgradeActionResult.Searched;
         }
         catch (Exception ex)
         {
-            _logger.LogErrorProcessingMovieUpgrade(ex, state.ItemId);
+            LogErrorProcessingMovieUpgrade(ex, state.ItemId);
             return UpgradeActionResult.Skipped;
         }
     }
@@ -115,7 +102,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         var queue = GetAllQueueItems(cancellationToken);
         if (await queue.AnyAsync(q => q is RadarrQueueResource radarrResource && radarrResource.MovieId == state.ItemId, cancellationToken: cancellationToken))
         {
-            _logger.LogMovieIsDownloading(state.Title ?? "Unknown", state.ItemId);
+            LogMovieIsDownloading(state.Title ?? "Unknown", state.ItemId);
             return true;
         }
 
@@ -137,10 +124,10 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         if (languageId.HasValue)
             queryBuilder.Add("languageId", languageId.Value.ToString());
 
-        return await _hybridCache.GetOrCreateAsync(
+        return await hybridCache.GetOrCreateAsync(
             $"radarr_movies_{tmdbId}_{excludeLocalCovers}_{languageId}",
             async ct =>
-                await _client.GetFromJsonAsync($"/api/v3/movie{queryBuilder.ToQueryString()}", RadarrClientJsonSerializerContext.Default.IListMovieResource, ct)
+                await client.GetFromJsonAsync($"/api/v3/movie{queryBuilder.ToQueryString()}", RadarrClientJsonSerializerContext.Default.IListMovieResource, ct)
                 ?? [],
             options: null,
             tags: ["radarr", "radarr_movies"],
@@ -149,9 +136,9 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
     }
 
     public async Task<MovieResource?> GetMovieByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        await _hybridCache.GetOrCreateAsync(
+        await hybridCache.GetOrCreateAsync(
             $"radarr_movie_{id}",
-            async ct => await _client.GetFromJsonAsync($"/api/v3/movie/{id}", RadarrClientJsonSerializerContext.Default.MovieResource, ct),
+            async ct => await client.GetFromJsonAsync($"/api/v3/movie/{id}", RadarrClientJsonSerializerContext.Default.MovieResource, ct),
             options: null,
             tags: ["radarr", "radarr_movies", $"radarr_movie_{id}"],
             cancellationToken: cancellationToken
@@ -174,7 +161,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         if (includeMovie)
             queryBuilder.Add("includeMovie", "true");
 
-        return await _client.GetFromJsonAsync(
+        return await client.GetFromJsonAsync(
                 $"/api/v3/queue{queryBuilder.ToQueryString()}",
                 RadarrClientJsonSerializerContext.Default.PagingResourceRadarrQueueResource,
                 cancellationToken
@@ -197,14 +184,14 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
         };
         try
         {
-            var response = await _client.DeleteAsync($"/api/v3/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
+            var response = await client.DeleteAsync($"/api/v3/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
             response.EnsureSuccessStatusCode();
-            await _hybridCache.RemoveByTagAsync("radarr", cancellationToken);
+            await hybridCache.RemoveByTagAsync("radarr", cancellationToken);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogErrorDeletingQueueItem(ex, itemId);
+            LogErrorDeletingQueueItem(ex, itemId);
             return false;
         }
     }
@@ -212,7 +199,7 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
     public async Task<CommandResource?> SearchMoviesAsync(IList<int> movieIds, CancellationToken cancellationToken = default)
     {
         var command = new MoviesSearchCommand { MovieIds = movieIds };
-        var response = await _client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync(
             "/api/v3/command",
             command,
             RadarrClientJsonSerializerContext.Default.MoviesSearchCommand,
@@ -270,6 +257,24 @@ public class RadarrClient : QueueManagerBase<RadarrQueueResource>, IQueueManager
 
         return (shouldRemove, downloadedScore);
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Movie {MovieId} not found")]
+    public partial void LogMovieNotFound(int movieId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Searching for movie: {MovieTitle}")]
+    public partial void LogSearchingForMovie(string movieTitle);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing movie upgrade for {MovieId}")]
+    public partial void LogErrorProcessingMovieUpgrade(Exception ex, int movieId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Movie {MovieTitle} (ID: {MovieId}) is currently downloading, skipping")]
+    public partial void LogMovieIsDownloading(string movieTitle, int movieId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Movie {MovieTitle} (ID: {MovieId}) is no longer monitored, removing from queue")]
+    public partial void LogMovieNoLongerMonitored(string movieTitle, int movieId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error deleting queue item {ItemId}")]
+    public partial void LogErrorDeletingQueueItem(Exception ex, int itemId);
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = true)]

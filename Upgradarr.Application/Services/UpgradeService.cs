@@ -1,6 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Upgradarr.Application.Extensions;
 using Upgradarr.Data;
 using Upgradarr.Data.Interfaces;
 using Upgradarr.Domain.Entities;
@@ -11,32 +10,17 @@ using Upgradarr.Integrations.Interfaces;
 
 namespace Upgradarr.Application.Services;
 
-internal class UpgradeService : IUpgradeService
+internal partial class UpgradeService(
+    IEnumerable<IUpgradeManager> upgradeManagers,
+    AppDbContext dbContext,
+    ILogger<UpgradeService> logger,
+    TimeProvider timeProvider,
+    IMigrationState migrationState
+    ) : IUpgradeService
 {
-    private readonly IEnumerable<IUpgradeManager> _upgradeManagers;
-    private readonly AppDbContext _dbContext;
-    private readonly ILogger<UpgradeService> _logger;
-    private readonly TimeProvider _timeProvider;
-    private readonly IMigrationState _migrationState;
-
-    public UpgradeService(
-        IEnumerable<IUpgradeManager> upgradeManagers,
-        AppDbContext dbContext,
-        ILogger<UpgradeService> logger,
-        TimeProvider timeProvider,
-        IMigrationState migrationState
-    )
-    {
-        _upgradeManagers = upgradeManagers;
-        _dbContext = dbContext;
-        _logger = logger;
-        _timeProvider = timeProvider;
-        _migrationState = migrationState;
-    }
-
     public async Task ProcessUpgradeAsync(CancellationToken cancellationToken = default)
     {
-        if (!_migrationState.IsDone)
+        if (!migrationState.IsDone)
             return;
 
         UpgradeState? state;
@@ -47,7 +31,7 @@ internal class UpgradeService : IUpgradeService
 
             if (state is null)
             {
-                _logger.LogNoMoreItemsToUpgrade();
+                LogNoMoreItemsToUpgrade();
                 return;
             }
         } while (!await ProcessItemUpgradeAsync(state, cancellationToken));
@@ -55,7 +39,7 @@ internal class UpgradeService : IUpgradeService
 
     public async Task RequeueAllItemsAsync(CancellationToken cancellationToken = default)
     {
-        if (!_migrationState.IsDone)
+        if (!migrationState.IsDone)
             return;
 
         await ResetQueueAsync(cancellationToken);
@@ -68,10 +52,10 @@ internal class UpgradeService : IUpgradeService
     {
         // Check for newly added items in Sonarr/Radarr and add them to queue
         await AddNewItemsToQueueAsync(cancellationToken);
-        var now = _timeProvider.GetUtcNow();
+        var now = timeProvider.GetUtcNow();
 
         // Get all pending items in queue order that are still monitored and released
-        var pendingItems = await _dbContext
+        var pendingItems = await dbContext
             .UpgradeStates.Where(u => u.SearchState == SearchState.Pending)
             .OrderBy(u => u.QueuePosition)
             .ToListAsync(cancellationToken);
@@ -86,7 +70,7 @@ internal class UpgradeService : IUpgradeService
         }
 
         // Check if there are any searched items
-        var hasSearchedItems = await _dbContext.UpgradeStates.AnyAsync(u => u.SearchState == SearchState.Searched, cancellationToken);
+        var hasSearchedItems = await dbContext.UpgradeStates.AnyAsync(u => u.SearchState == SearchState.Searched, cancellationToken);
         if (hasSearchedItems)
         {
             // All pending items processed, reset the queue and start over
@@ -105,9 +89,9 @@ internal class UpgradeService : IUpgradeService
         if (state is null)
             return false;
 
-        _logger.LogProcessingItem(state.ItemType, state.Title ?? "Unknown", state.ItemId);
+        LogProcessingItem(state.ItemType, state.Title ?? "Unknown", state.ItemId);
 
-        var manager = _upgradeManagers.FirstOrDefault(m => m.CanHandle(state.ItemType));
+        var manager = upgradeManagers.FirstOrDefault(m => m.CanHandle(state.ItemType));
         if (manager is null)
         {
             return false;
@@ -120,8 +104,8 @@ internal class UpgradeService : IUpgradeService
             {
                 case UpgradeActionResult.Searched:
                     state.SearchState = SearchState.Searched;
-                    state.LastUpdatedAt = _timeProvider.GetUtcNow();
-                    await _dbContext.SaveChangesAsync(cancellationToken);
+                    state.LastUpdatedAt = timeProvider.GetUtcNow();
+                    await dbContext.SaveChangesAsync(cancellationToken);
                     return true;
 
                 case UpgradeActionResult.Removed:
@@ -135,7 +119,7 @@ internal class UpgradeService : IUpgradeService
         }
         catch (Exception ex)
         {
-            _logger.LogErrorFailedToProcessUpgrade(ex, state.ItemId);
+            LogErrorFailedToProcessUpgrade(ex, state.ItemId);
             return false;
         }
     }
@@ -146,25 +130,25 @@ internal class UpgradeService : IUpgradeService
 
         if (state.ItemType == ItemType.Series)
         {
-            var children = await _dbContext.UpgradeStates.Where(u => u.ParentSeriesId == state.ItemId).ToListAsync(cancellationToken);
+            var children = await dbContext.UpgradeStates.Where(u => u.ParentSeriesId == state.ItemId).ToListAsync(cancellationToken);
             itemsToRemove.AddRange(children);
         }
         else if (state.ItemType == ItemType.Season)
         {
-            var children = await _dbContext
+            var children = await dbContext
                 .UpgradeStates.Where(u => u.ParentSeriesId == state.ParentSeriesId && u.SeasonNumber == state.SeasonNumber)
                 .ToListAsync(cancellationToken);
             // It will also include the season itself
             itemsToRemove.AddRange(children);
         }
 
-        _dbContext.UpgradeStates.RemoveRange(itemsToRemove.DistinctBy(i => i.Id));
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        dbContext.UpgradeStates.RemoveRange(itemsToRemove.DistinctBy(i => i.Id));
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<bool> HasOngoingDownloadAsync(UpgradeState state, CancellationToken cancellationToken = default)
     {
-        var manager = _upgradeManagers.FirstOrDefault(m => m.CanHandle(state.ItemType));
+        var manager = upgradeManagers.FirstOrDefault(m => m.CanHandle(state.ItemType));
         if (manager is null)
             return false;
 
@@ -174,7 +158,7 @@ internal class UpgradeService : IUpgradeService
         }
         catch (Exception ex)
         {
-            _logger.LogErrorCheckingQueueForItem(ex, state.ItemId);
+            LogErrorCheckingQueueForItem(ex, state.ItemId);
             return false;
         }
     }
@@ -266,12 +250,12 @@ internal class UpgradeService : IUpgradeService
         try
         {
             // Clear existing queue
-            var allStates = await _dbContext.UpgradeStates.ToListAsync(cancellationToken);
-            _dbContext.UpgradeStates.RemoveRange(allStates);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            var allStates = await dbContext.UpgradeStates.ToListAsync(cancellationToken);
+            dbContext.UpgradeStates.RemoveRange(allStates);
+            await dbContext.SaveChangesAsync(cancellationToken);
 
             var queueItems = new List<UpgradeState>();
-            foreach (var manager in _upgradeManagers)
+            foreach (var manager in upgradeManagers)
             {
                 await foreach (var item in manager.BuildQueueItemsAsync(cancellationToken))
                 {
@@ -281,13 +265,13 @@ internal class UpgradeService : IUpgradeService
 
             var shuffledQueue = ShuffleAndAssignPositions(queueItems);
 
-            _dbContext.UpgradeStates.AddRange(shuffledQueue);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-            _logger.LogResetQueuePosition();
+            dbContext.UpgradeStates.AddRange(shuffledQueue);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            LogResetQueuePosition();
         }
         catch (Exception ex)
         {
-            _logger.LogErrorResettingQueue(ex);
+            LogErrorResettingQueue(ex);
         }
     }
 
@@ -295,10 +279,10 @@ internal class UpgradeService : IUpgradeService
     {
         try
         {
-            var existingItems = await _dbContext.UpgradeStates.ToListAsync(cancellationToken);
+            var existingItems = await dbContext.UpgradeStates.ToListAsync(cancellationToken);
 
             var allTrackableItems = new List<UpgradeState>();
-            foreach (var manager in _upgradeManagers)
+            foreach (var manager in upgradeManagers)
             {
                 await foreach (var item in manager.BuildQueueItemsAsync(cancellationToken))
                 {
@@ -318,7 +302,7 @@ internal class UpgradeService : IUpgradeService
                 if (item.IsMonitored != isCurrentlyMonitored)
                 {
                     item.IsMonitored = isCurrentlyMonitored;
-                    item.LastUpdatedAt = _timeProvider.GetUtcNow();
+                    item.LastUpdatedAt = timeProvider.GetUtcNow();
                     monitoringChanged = true;
                 }
             }
@@ -350,28 +334,28 @@ internal class UpgradeService : IUpgradeService
             // Add new items to context
             if (newItems.Count > 0)
             {
-                _dbContext.UpgradeStates.AddRange(newItems);
+                dbContext.UpgradeStates.AddRange(newItems);
             }
 
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
 
             if (newItems.Count > 0)
             {
-                _logger.LogAddedNewItemsToQueue(newItems.Count);
+                LogAddedNewItemsToQueue(newItems.Count);
             }
 
             if (monitoringChanged)
             {
-                var changedCount = existingItems.Count(i => _dbContext.Entry(i).Property(nameof(UpgradeState.IsMonitored)).IsModified);
+                var changedCount = existingItems.Count(i => dbContext.Entry(i).Property(nameof(UpgradeState.IsMonitored)).IsModified);
                 if (changedCount > 0)
                 {
-                    _logger.LogUpdatedMonitoringStatus(changedCount);
+                    LogUpdatedMonitoringStatus(changedCount);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogErrorAddingNewItemsToQueue(ex);
+            LogErrorAddingNewItemsToQueue(ex);
         }
     }
 
@@ -379,7 +363,7 @@ internal class UpgradeService : IUpgradeService
     {
         try
         {
-            var allItems = await _dbContext.UpgradeStates.ToListAsync(cancellationToken);
+            var allItems = await dbContext.UpgradeStates.ToListAsync(cancellationToken);
 
             foreach (var item in allItems)
             {
@@ -389,24 +373,57 @@ internal class UpgradeService : IUpgradeService
             int position = 0;
             foreach (var (itemType, itemId, parentSeriesId, seasonNumber, episodeNumber) in items)
             {
-                var existingItem = await _dbContext.UpgradeStates.FirstOrDefaultAsync(u => u.ItemId == itemId && u.ItemType == itemType, cancellationToken);
+                var existingItem = await dbContext.UpgradeStates.FirstOrDefaultAsync(u => u.ItemId == itemId && u.ItemType == itemType, cancellationToken);
 
                 if (existingItem is not null)
                 {
                     existingItem.SearchState = SearchState.Pending;
                     existingItem.QueuePosition = position++;
-                    existingItem.LastUpdatedAt = _timeProvider.GetUtcNow();
+                    existingItem.LastUpdatedAt = timeProvider.GetUtcNow();
                 }
             }
 
-            _dbContext.UpgradeStates.UpdateRange(allItems);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            dbContext.UpgradeStates.UpdateRange(allItems);
+            await dbContext.SaveChangesAsync(cancellationToken);
 
-            _logger.LogAddedItemsToFrontOfQueue(items.Count);
+            LogAddedItemsToFrontOfQueue(items.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogErrorAddingItemsToQueue(ex);
+            LogErrorAddingItemsToQueue(ex);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "No more items to upgrade")]
+    public partial void LogNoMoreItemsToUpgrade();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processing {ItemType}: {Title} (ID: {ItemId})")]
+    public partial void LogProcessingItem(ItemType itemType, string title, int itemId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error checking queue for item {ItemId}")]
+    public partial void LogErrorCheckingQueueForItem(Exception ex, int itemId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Reset queue position")]
+    public partial void LogResetQueuePosition();
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error resetting queue")]
+    public partial void LogErrorResettingQueue(Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Added {ItemCount} items to front of queue")]
+    public partial void LogAddedItemsToFrontOfQueue(int itemCount);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error adding items to queue")]
+    public partial void LogErrorAddingItemsToQueue(Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Added {ItemCount} new items to queue and reshuffled")]
+    public partial void LogAddedNewItemsToQueue(int itemCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Updated monitoring status for {ItemCount} items")]
+    public partial void LogUpdatedMonitoringStatus(int itemCount);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error detecting and adding new items to queue")]
+    public partial void LogErrorAddingNewItemsToQueue(Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to process upgrade for item {ItemId}")]
+    public partial void LogErrorFailedToProcessUpgrade(Exception ex, int itemId);
 }

@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -9,26 +9,13 @@ using Upgradarr.Domain.Enums;
 using Upgradarr.Domain.Interfaces;
 using Upgradarr.Domain.ValueObjects;
 using Upgradarr.Integrations.Interfaces;
-using Upgradarr.Integrations.Lidarr.Extensions;
 using Upgradarr.Integrations.Lidarr.Models;
 using Upgradarr.Integrations.Models;
 
 namespace Upgradarr.Integrations.Lidarr;
 
-public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager, IUpgradeManager
+public partial class LidarrClient(HttpClient client, ILogger<LidarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache) : QueueManagerBase<LidarrQueueResource>, IQueueManager, IUpgradeManager
 {
-    private readonly HttpClient _client;
-    private readonly TimeProvider _timeProvider;
-    private readonly HybridCache _hybridCache;
-
-    public LidarrClient(HttpClient client, ILogger<LidarrClient> logger, TimeProvider timeProvider, HybridCache hybridCache)
-        : base(logger)
-    {
-        _client = client;
-        _timeProvider = timeProvider;
-        _hybridCache = hybridCache;
-    }
-
     public RecordSource SourceName => RecordSource.Lidarr;
 
     public bool CanHandle(ItemType itemType) => itemType is ItemType.Artist or ItemType.Album;
@@ -75,7 +62,7 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
             ItemType = ItemType.Artist,
             SearchState = SearchState.Pending,
             IsMonitored = true,
-            CreatedAt = _timeProvider.GetUtcNow(),
+            CreatedAt = timeProvider.GetUtcNow(),
         };
         queueItems.Add(artistItem);
 
@@ -95,7 +82,7 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
                 IsMonitored = true,
                 IsMissing = isMissing,
                 ReleaseDate = album.ReleaseDate,
-                CreatedAt = _timeProvider.GetUtcNow(),
+                CreatedAt = timeProvider.GetUtcNow(),
             };
             queueItems.Add(albumItem);
 
@@ -125,23 +112,23 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
             var artist = await GetArtistByIdAsync(state.ItemId, cancellationToken);
             if (artist is null)
             {
-                _logger.LogArtistNotFound(state.ItemId);
+                LogArtistNotFound(state.ItemId);
                 return UpgradeActionResult.Searched;
             }
 
             if (!artist.Monitored)
             {
-                _logger.LogArtistNoLongerMonitored(artist.ArtistName ?? "Unknown", state.ItemId);
+                LogArtistNoLongerMonitored(artist.ArtistName ?? "Unknown", state.ItemId);
                 return UpgradeActionResult.Removed;
             }
 
-            _logger.LogSearchingForArtist(artist.ArtistName ?? "Unknown");
+            LogSearchingForArtist(artist.ArtistName ?? "Unknown");
             await SearchArtistAsync(state.ItemId, cancellationToken);
             return UpgradeActionResult.Searched;
         }
         catch (Exception ex)
         {
-            _logger.LogErrorProcessingArtistUpgrade(ex, state.ItemId);
+            LogErrorProcessingArtistUpgrade(ex, state.ItemId);
             return UpgradeActionResult.Skipped;
         }
     }
@@ -153,13 +140,13 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
             var album = await GetAlbumByIdAsync(state.ItemId, cancellationToken);
             if (album is null)
             {
-                _logger.LogAlbumNoLongerMonitored(state.Title ?? "Unknown", state.ItemId);
+                LogAlbumNoLongerMonitored(state.Title ?? "Unknown", state.ItemId);
                 return UpgradeActionResult.Searched;
             }
 
             if (!album.Monitored)
             {
-                _logger.LogAlbumNoLongerMonitored(album.Title ?? "Unknown", state.ItemId);
+                LogAlbumNoLongerMonitored(album.Title ?? "Unknown", state.ItemId);
                 return UpgradeActionResult.Removed;
             }
 
@@ -168,13 +155,13 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
                 return UpgradeActionResult.Skipped;
             }
 
-            _logger.LogSearchingForAlbum(album.Title ?? "Unknown");
+            LogSearchingForAlbum(album.Title ?? "Unknown");
             await SearchAlbumsAsync([state.ItemId], cancellationToken);
             return UpgradeActionResult.Searched;
         }
         catch (Exception ex)
         {
-            _logger.LogErrorProcessingAlbumUpgrade(ex, state.ItemId);
+            LogErrorProcessingAlbumUpgrade(ex, state.ItemId);
             return UpgradeActionResult.Skipped;
         }
     }
@@ -194,7 +181,7 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
         var queue = GetAllQueueItems(cancellationToken);
         if (await queue.AnyAsync(q => q is LidarrQueueResource lidarrResource && lidarrResource.ArtistId == state.ItemId, cancellationToken: cancellationToken))
         {
-            _logger.LogArtistHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
+            LogArtistHasOngoingDownloads(state.Title ?? "Unknown", state.ItemId);
             return true;
         }
         return false;
@@ -205,25 +192,25 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
         var queue = GetAllQueueItems(cancellationToken);
         if (await queue.AnyAsync(q => q is LidarrQueueResource lidarrResource && lidarrResource.AlbumId == state.ItemId, cancellationToken: cancellationToken))
         {
-            _logger.LogAlbumIsDownloading(state.Title ?? "Unknown", state.ItemId);
+            LogAlbumIsDownloading(state.Title ?? "Unknown", state.ItemId);
             return true;
         }
         return false;
     }
 
     public async Task<IList<ArtistResource>> GetArtistsAsync(CancellationToken cancellationToken = default) =>
-        await _hybridCache.GetOrCreateAsync(
+        await hybridCache.GetOrCreateAsync(
             "lidarr_artists",
-            async ct => await _client.GetFromJsonAsync("/api/v1/artist", LidarrClientJsonSerializerContext.Default.IListArtistResource, ct) ?? [],
+            async ct => await client.GetFromJsonAsync("/api/v1/artist", LidarrClientJsonSerializerContext.Default.IListArtistResource, ct) ?? [],
             options: null,
             tags: ["lidarr", "lidarr_artists"],
             cancellationToken: cancellationToken
         );
 
     public async Task<ArtistResource?> GetArtistByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        await _hybridCache.GetOrCreateAsync(
+        await hybridCache.GetOrCreateAsync(
             $"lidarr_artist_{id}",
-            async ct => await _client.GetFromJsonAsync($"/api/v1/artist/{id}", LidarrClientJsonSerializerContext.Default.ArtistResource, ct),
+            async ct => await client.GetFromJsonAsync($"/api/v1/artist/{id}", LidarrClientJsonSerializerContext.Default.ArtistResource, ct),
             options: null,
             tags: ["lidarr", "lidarr_artists", $"lidarr_artist_{id}"],
             cancellationToken: cancellationToken
@@ -248,7 +235,7 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
             foreach (var id in albumIds)
                 queryBuilder.Add("albumIds", id.ToString());
 
-        return await _client.GetFromJsonAsync(
+        return await client.GetFromJsonAsync(
                 $"/api/v1/album{queryBuilder.ToQueryString()}",
                 LidarrClientJsonSerializerContext.Default.IListAlbumResource,
                 cancellationToken
@@ -256,9 +243,9 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
     }
 
     public async Task<AlbumResource?> GetAlbumByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        await _hybridCache.GetOrCreateAsync(
+        await hybridCache.GetOrCreateAsync(
             $"lidarr_album_{id}",
-            async ct => await _client.GetFromJsonAsync($"/api/v1/album/{id}", LidarrClientJsonSerializerContext.Default.AlbumResource, ct),
+            async ct => await client.GetFromJsonAsync($"/api/v1/album/{id}", LidarrClientJsonSerializerContext.Default.AlbumResource, ct),
             options: null,
             tags: ["lidarr", "lidarr_albums", $"lidarr_album_{id}"],
             cancellationToken: cancellationToken
@@ -284,7 +271,7 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
         if (includeAlbum)
             queryBuilder.Add("includeAlbum", "true");
 
-        return await _client.GetFromJsonAsync(
+        return await client.GetFromJsonAsync(
                 $"/api/v1/queue{queryBuilder.ToQueryString()}",
                 LidarrClientJsonSerializerContext.Default.PagingResourceLidarrQueueResource,
                 cancellationToken
@@ -294,7 +281,7 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
     public async Task<CommandResource?> SearchArtistAsync(int artistId, CancellationToken cancellationToken = default)
     {
         var command = new ArtistSearchCommand { ArtistId = artistId };
-        var response = await _client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync(
             "/api/v1/command",
             command,
             LidarrClientJsonSerializerContext.Default.ArtistSearchCommand,
@@ -306,7 +293,7 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
     public async Task<CommandResource?> SearchAlbumsAsync(IList<int> albumIds, CancellationToken cancellationToken = default)
     {
         var command = new AlbumSearchCommand { AlbumIds = albumIds };
-        var response = await _client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync(
             "/api/v1/command",
             command,
             LidarrClientJsonSerializerContext.Default.AlbumSearchCommand,
@@ -331,14 +318,14 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
         };
         try
         {
-            var response = await _client.DeleteAsync($"/api/v1/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
+            var response = await client.DeleteAsync($"/api/v1/queue/{itemId}{queryBuilder.ToQueryString()}", cancellationToken);
             response.EnsureSuccessStatusCode();
-            await _hybridCache.RemoveByTagAsync("lidarr", cancellationToken);
+            await hybridCache.RemoveByTagAsync("lidarr", cancellationToken);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogErrorDeletingQueueItem(ex, itemId);
+            LogErrorDeletingQueueItem(ex, itemId);
             return false;
         }
     }
@@ -384,7 +371,38 @@ public class LidarrClient : QueueManagerBase<LidarrQueueResource>, IQueueManager
         var shouldRemove = item.CustomFormatScore <= 0;
         return (shouldRemove, 0);
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Artist {ArtistId} not found")]
+    public partial void LogArtistNotFound(int artistId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Searching for artist: {ArtistName}")]
+    public partial void LogSearchingForArtist(string artistName);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Searching for album: {AlbumTitle}")]
+    public partial void LogSearchingForAlbum(string albumTitle);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing artist upgrade for {ArtistId}")]
+    public partial void LogErrorProcessingArtistUpgrade(Exception ex, int artistId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing album upgrade for album {AlbumId}")]
+    public partial void LogErrorProcessingAlbumUpgrade(Exception ex, int albumId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Artist {ArtistName} (ID: {ArtistId}) has ongoing downloads, skipping")]
+    public partial void LogArtistHasOngoingDownloads(string artistName, int artistId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Album {AlbumTitle} (ID: {AlbumId}) is currently downloading, skipping")]
+    public partial void LogAlbumIsDownloading(string albumTitle, int albumId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Artist {ArtistName} (ID: {ArtistId}) is no longer monitored, removing from queue")]
+    public partial void LogArtistNoLongerMonitored(string artistName, int artistId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Album {AlbumTitle} (ID: {AlbumId}) is no longer monitored, removing from queue")]
+    public partial void LogAlbumNoLongerMonitored(string albumTitle, int albumId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error deleting queue item {ItemId}")]
+    public partial void LogErrorDeletingQueueItem(Exception ex, int itemId);
 }
+
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(IList<ArtistResource>))]

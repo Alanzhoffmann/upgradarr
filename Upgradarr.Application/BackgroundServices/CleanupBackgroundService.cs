@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -7,53 +7,39 @@ using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Application.BackgroundServices;
 
-public class CleanupBackgroundService : BackgroundService
+public partial class CleanupBackgroundService(ILogger<CleanupBackgroundService> logger, IOptionsMonitor<CleanupOptions> optionsMonitor, IServiceProvider serviceProvider) : BackgroundService
 {
-    private readonly ILogger<CleanupBackgroundService> _logger;
-    private readonly IOptionsMonitor<CleanupOptions> _optionsMonitor;
-    private readonly IServiceProvider _serviceProvider;
-
-    public CleanupBackgroundService(ILogger<CleanupBackgroundService> logger, IOptionsMonitor<CleanupOptions> optionsMonitor, IServiceProvider serviceProvider)
-    {
-        _logger = logger;
-        _optionsMonitor = optionsMonitor;
-        _serviceProvider = serviceProvider;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using (_logger.BeginScope("CleanupBackgroundService"))
+        using (logger.BeginScope("CleanupBackgroundService"))
         {
-            _logger.LogStartingCleanupBackgroundService();
-            stoppingToken.Register(() => _logger.LogStoppingCleanupBackgroundService());
+            LogStartingCleanupBackgroundService();
+            stoppingToken.Register(LogStoppingCleanupBackgroundService);
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    using var scope = _serviceProvider.CreateScope();
+                    using var scope = serviceProvider.CreateScope();
                     var cleanupService = scope.ServiceProvider.GetRequiredService<ICleanupService>();
                     await cleanupService.PerformCleanupAsync(stoppingToken);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogCleanupError(ex.Message);
+                    LogCleanupError(ex, ex.Message);
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(Math.Max(1, _optionsMonitor.CurrentValue.CleanupIntervalMinutes)), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(Math.Max(1, optionsMonitor.CurrentValue.CleanupIntervalMinutes)), stoppingToken);
             }
         }
     }
-}
 
-internal static partial class CleanupLoggerExtensions
-{
-    [LoggerMessage(EventId = 0, Level = LogLevel.Information, Message = "Starting Cleanup Background Service.")]
-    public static partial void LogStartingCleanupBackgroundService(this ILogger logger);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting Cleanup Background Service.")]
+    public partial void LogStartingCleanupBackgroundService();
 
-    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Stopping Cleanup Background Service.")]
-    public static partial void LogStoppingCleanupBackgroundService(this ILogger logger);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Stopping Cleanup Background Service.")]
+    public partial void LogStoppingCleanupBackgroundService();
 
-    [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "An error occurred during cleanup: {ErrorMessage}")]
-    public static partial void LogCleanupError(this ILogger logger, string errorMessage);
+    [LoggerMessage(Level = LogLevel.Error, Message = "An error occurred during cleanup: {ErrorMessage}")]
+    public partial void LogCleanupError(Exception ex, string errorMessage);
 }

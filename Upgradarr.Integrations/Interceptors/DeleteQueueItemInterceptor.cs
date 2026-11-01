@@ -7,19 +7,9 @@ using Upgradarr.Domain.Interfaces;
 
 namespace Upgradarr.Integrations.Interceptors;
 
-public class DeleteQueueItemInterceptor : SaveChangesInterceptor
+public partial class DeleteQueueItemInterceptor(TimeProvider timeProvider, IServiceProvider serviceProvider, ILogger<DeleteQueueItemInterceptor> logger) : SaveChangesInterceptor
 {
-    private readonly TimeProvider _timeProvider;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<DeleteQueueItemInterceptor> _logger;
-    private IUpgradeService UpgradeService => field ??= _serviceProvider.GetRequiredService<IUpgradeService>();
-
-    public DeleteQueueItemInterceptor(TimeProvider timeProvider, IServiceProvider serviceProvider, ILogger<DeleteQueueItemInterceptor> logger)
-    {
-        _timeProvider = timeProvider;
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-    }
+    private IUpgradeService UpgradeService => field ??= serviceProvider.GetRequiredService<IUpgradeService>();
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
@@ -37,7 +27,7 @@ public class DeleteQueueItemInterceptor : SaveChangesInterceptor
             return result;
         }
 
-        var now = _timeProvider.GetUtcNow();
+        var now = timeProvider.GetUtcNow();
         var entries = eventData
             .Context.ChangeTracker.Entries<QueueRecord>()
             .Where(e => e.Entity.RemoveAt.HasValue && e.Entity.RemoveAt.Value <= now)
@@ -45,10 +35,10 @@ public class DeleteQueueItemInterceptor : SaveChangesInterceptor
 
         foreach (var group in entries)
         {
-            var queueManager = _serviceProvider.GetKeyedService<IQueueManager>(group.Key);
+            var queueManager = serviceProvider.GetKeyedService<IQueueManager>(group.Key);
             if (queueManager is null)
             {
-                _logger.LogErrorRemovingItemFromQueue(group.Key);
+                LogErrorRemovingItemFromQueue(group.Key);
                 continue;
             }
 
@@ -71,10 +61,7 @@ public class DeleteQueueItemInterceptor : SaveChangesInterceptor
 
         return result;
     }
-}
 
-static partial class DeleteQueueItemLogger
-{
-    [LoggerMessage(EventId = 4027, Level = LogLevel.Error, Message = "No IQueueManager found for source {Source}. Cannot delete queue items.")]
-    public static partial void LogErrorRemovingItemFromQueue(this ILogger logger, RecordSource source);
+    [LoggerMessage(Level = LogLevel.Error, Message = "No IQueueManager found for source {Source}. Cannot delete queue items.")]
+    public partial void LogErrorRemovingItemFromQueue(RecordSource source);
 }
