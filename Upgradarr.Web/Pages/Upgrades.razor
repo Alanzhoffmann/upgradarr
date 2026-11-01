@@ -8,7 +8,7 @@
 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
     <h1>Upgrades</h1>
     <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-        <FluentButton Appearance="Appearance.Accent" Disabled="@isRequeueing" OnClick="RequeueAll">
+        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@isRequeueing" OnClick="RequeueAll">
             @(isRequeueing ? "Requeueing..." : "Clear Queue and Requeue All")
         </FluentButton>
         <FluentSwitch @bind-Value="ShowPendingOnly" @bind-Value:after="LoadData">Show Pending Only</FluentSwitch>
@@ -22,7 +22,7 @@
 
 @if (upgrades == null)
 {
-    <FluentProgressRing />
+    <FluentSpinner />
 }
 else
 {

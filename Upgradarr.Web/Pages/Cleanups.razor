@@ -8,11 +8,11 @@
 
 @if (cleanups == null)
 {
-    <FluentProgressRing />
+    <FluentSpinner />
 }
 else
 {
-    <FluentButton Appearance="Appearance.Accent" OnClick="RunCleanup">Run Cleanup Now</FluentButton>
+    <FluentButton Appearance="ButtonAppearance.Default" OnClick="RunCleanup">Run Cleanup Now</FluentButton>
     <br/><br/>
     <div style="overflow-x: auto; width: 100%;">
         <FluentDataGrid Items="@cleanups.AsQueryable()" Style="min-width: 700px; width: 100%;" GridTemplateColumns="2fr 1fr 1fr 1fr">

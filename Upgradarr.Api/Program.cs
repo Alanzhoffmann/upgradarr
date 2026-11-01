@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using Upgradarr.Api.Endpoints;
 using Upgradarr.Api.Middleware;
 using Upgradarr.Application.BackgroundServices;
