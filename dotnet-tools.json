@@ -3,21 +3,21 @@
   "isRoot": true,
   "tools": {
     "dotnet-ef": {
-      "version": "10.0.5",
+      "version": "10.0.14",
       "commands": [
         "dotnet-ef"
       ],
       "rollForward": false
     },
     "csharpier": {
-      "version": "1.2.6",
+      "version": "1.3.0",
       "commands": [
         "csharpier"
       ],
       "rollForward": false
     },
     "nbgv": {
-      "version": "3.9.50",
+      "version": "3.10.94",
       "commands": [
         "nbgv"
       ],
