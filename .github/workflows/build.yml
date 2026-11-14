@@ -45,14 +45,14 @@ jobs:
 
       - name: Upload test results
         if: always()  # Run even if tests fail
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: ./TestResults/*.trx
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: ./TestResults/*.cobertura.xml
@@ -65,14 +65,14 @@ jobs:
 
     steps:
     - name: Download all test results
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         pattern: test-results
         path: ./test-results
         merge-multiple: true
 
     - name: Download all coverage results
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         pattern: coverage
         path: ./coverage
