@@ -84,7 +84,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.nbgv.outputs.public_release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.nbgv.outputs.version }}
           name: Release v${{ steps.nbgv.outputs.version }}
